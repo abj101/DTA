@@ -1,0 +1,64 @@
+/**
+ * DTA design tokens — mirrors DESIGN.md (from References/Analysis.md).
+ * Import once at top of app/globals.css (before Tailwind layers in v3; after @import "tailwindcss" in v4).
+ */
+
+:root {
+  /* Backgrounds & surfaces */
+  --dta-bg-base: #050505;
+  --dta-bg-raised: #0b0b0c;
+  --dta-surface: #111214;
+  --dta-surface-elevated: #17181b;
+
+  /* Text */
+  --dta-text-primary: #f5f5f7;
+  --dta-text-secondary: #b4b4b8;
+  --dta-text-muted: #8a8a8e;
+
+  /* Borders */
+  --dta-border-subtle: #262628;
+
+  /* Accents (use sparingly — DESIGN.md Color Frequency Rule) */
+  --dta-accent-blue: #6ea8ff;
+  --dta-accent-cyan: #72d6ff;
+  --dta-accent-purple: #8b7dff;
+
+  /* Type */
+  --dta-font-sans: Inter, system-ui, sans-serif;
+
+  /* Radii */
+  --dta-radius-sm: 12px;
+  --dta-radius-md: 18px;
+  --dta-radius-lg: 24px;
+  --dta-radius-xl: 32px;
+  --dta-radius-pill: 999px;
+
+  /* Spacing scale */
+  --dta-space-xs: 4px;
+  --dta-space-sm: 8px;
+  --dta-space-md: 16px;
+  --dta-space-lg: 24px;
+  --dta-space-xl: 32px;
+  --dta-space-section: 120px;
+
+  /* Motion (DESIGN.md / Analysis.md) */
+  --dta-ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --dta-duration-hover: 150ms;
+  --dta-duration-card: 220ms;
+  --dta-duration-section: 600ms;
+
+  /* Elevation */
+  --dta-shadow-accent-bloom: 0 0 40px rgba(110, 168, 255, 0.08);
+
+  /* Atmosphere (hero / section transitions — use in utilities or arbitrary values) */
+  --dta-wash-vertical: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0)
+  );
+  --dta-glow-radial: radial-gradient(
+    circle,
+    rgba(114, 214, 255, 0.15),
+    transparent 70%
+  );
+}
