@@ -51,70 +51,141 @@ export async function GET(req: NextRequest) {
   }
 
   const eventTypeUri = `https://api.calendly.com/event_types/${eventUuid}`;
-  async function fetchAvailability(start: string, end: string) {
+
+  type FetchResult =
+    | { ok: true; collection: { start_time?: string }[] }
+    | {
+        ok: false;
+        status: number;
+        body: CalendlyErrorBody | undefined;
+        transient: boolean;
+      };
+
+  async function fetchAvailability(
+    start: string,
+    end: string,
+  ): Promise<FetchResult> {
     const url =
       "https://api.calendly.com/event_type_available_times" +
       `?event_type=${encodeURIComponent(eventTypeUri)}` +
       `&start_time=${encodeURIComponent(start)}` +
       `&end_time=${encodeURIComponent(end)}`;
-    return fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 0 },
-    });
-  }
-
-  let res = await fetchAvailability(startTime, endTime);
-
-  if (!res.ok) {
-    let errBody: CalendlyErrorBody | undefined;
+    let res: Response;
     try {
-      errBody = (await res.json()) as CalendlyErrorBody;
+      res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      });
     } catch {
-      errBody = undefined;
+      return { ok: false, status: 0, body: undefined, transient: true };
     }
 
-    const hasStartTimeInvalid =
+    if (res.ok) {
+      const data = (await res.json()) as {
+        collection?: { start_time?: string }[];
+      };
+      return { ok: true, collection: data.collection ?? [] };
+    }
+
+    let body: CalendlyErrorBody | undefined;
+    try {
+      body = (await res.json()) as CalendlyErrorBody;
+    } catch {
+      body = undefined;
+    }
+
+    // Treat 5xx, 429, and generic-400 "Invalid Argument" without a specific
+    // parameter as transient: Calendly returns these intermittently for the
+    // same valid input. Configuration errors (401/403, or 400s that name a
+    // specific bad parameter) are NOT transient.
+    const isServerError = res.status >= 500;
+    const isRateLimit = res.status === 429;
+    const namesBadParameter = body?.details?.some(
+      (d) => typeof d.parameter === "string" && d.parameter.length > 0,
+    );
+    const isGenericInvalidArg =
       res.status === 400 &&
-      errBody?.details?.some(
-        (d) =>
-          d.parameter === "start_time" &&
-          typeof d.message === "string" &&
-          d.message.toLowerCase().includes("future"),
-      );
+      body?.title === "Invalid Argument" &&
+      !namesBadParameter;
 
-    if (hasStartTimeInvalid) {
-      const retryStart = new Date(Date.now() + 5 * 60_000).toISOString();
-      if (retryStart < endTime) {
-        startTime = startTime < retryStart ? retryStart : startTime;
-        res = await fetchAvailability(startTime, endTime);
+    return {
+      ok: false,
+      status: res.status,
+      body,
+      transient: isServerError || isRateLimit || isGenericInvalidArg,
+    };
+  }
+
+  async function fetchWithRetry(start: string, end: string): Promise<FetchResult> {
+    const delays = [0, 350, 900];
+    let last: FetchResult = {
+      ok: false,
+      status: 0,
+      body: undefined,
+      transient: true,
+    };
+    for (const delay of delays) {
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
+      last = await fetchAvailability(start, end);
+      if (last.ok) return last;
+      if (!last.transient) return last;
+    }
+    return last;
+  }
+
+  let result = await fetchWithRetry(startTime, endTime);
+
+  if (
+    !result.ok &&
+    result.status === 400 &&
+    result.body?.details?.some(
+      (d) =>
+        d.parameter === "start_time" &&
+        typeof d.message === "string" &&
+        d.message.toLowerCase().includes("future"),
+    )
+  ) {
+    const retryStart = new Date(Date.now() + 5 * 60_000).toISOString();
+    if (retryStart < endTime) {
+      startTime = startTime < retryStart ? retryStart : startTime;
+      result = await fetchWithRetry(startTime, endTime);
     }
   }
 
-  if (!res.ok) {
-    let detail: string | undefined;
-    try {
-      const errBody = (await res.json()) as CalendlyErrorBody;
-      detail = errBody.message ?? errBody.title;
-    } catch {
-      detail = undefined;
-    }
+  if (!result.ok) {
+    const detail =
+      result.body?.message ??
+      result.body?.title ??
+      result.body?.details?.map((d) => d.message).filter(Boolean).join("; ");
+    console.error(
+      "[availability] Calendly API error",
+      JSON.stringify(
+        {
+          status: result.status,
+          detail,
+          body: result.body,
+          date,
+          startTime,
+          endTime,
+        },
+        null,
+        2,
+      ),
+    );
     return NextResponse.json(
-      { error: "Calendly API error", detail },
+      { error: "Calendly API error", detail, status: result.status },
       { status: 502 },
     );
   }
 
-  const data = (await res.json()) as {
-    collection?: { start_time?: string }[];
-  };
-  const slots =
-    data.collection
-      ?.map((s) => s.start_time)
-      .filter((t): t is string => typeof t === "string") ?? [];
+  const slots = result.collection
+    .map((s) => s.start_time)
+    .filter((t): t is string => typeof t === "string");
 
   return NextResponse.json({ slots });
 }

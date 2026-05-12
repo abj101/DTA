@@ -2,7 +2,48 @@
 
 import * as React from "react";
 
+const CALENDLY_OVERLAY_SELECTOR = ".calendly-overlay";
+
 export function CalendlyScript() {
+  React.useEffect(() => {
+    let reservedScrollbarPx = 0;
+
+    function scrollbarWidthPx() {
+      return Math.max(
+        0,
+        window.innerWidth - document.documentElement.clientWidth,
+      );
+    }
+
+    function syncCalendlyScrollLock() {
+      const open = document.querySelector(CALENDLY_OVERLAY_SELECTOR) !== null;
+      if (open) {
+        if (reservedScrollbarPx === 0) {
+          reservedScrollbarPx = scrollbarWidthPx();
+        }
+        document.documentElement.style.overflow = "hidden";
+        document.documentElement.style.paddingRight =
+          reservedScrollbarPx > 0 ? `${reservedScrollbarPx}px` : "";
+        return;
+      }
+      reservedScrollbarPx = 0;
+      document.documentElement.style.overflow = "";
+      document.documentElement.style.paddingRight = "";
+    }
+
+    const observer = new MutationObserver(() => {
+      syncCalendlyScrollLock();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    syncCalendlyScrollLock();
+    return () => {
+      observer.disconnect();
+      reservedScrollbarPx = 0;
+      document.documentElement.style.overflow = "";
+      document.documentElement.style.paddingRight = "";
+    };
+  }, []);
+
   React.useEffect(() => {
     const existingScript = document.querySelector<HTMLScriptElement>(
       'script[src*="calendly.com/assets/external/widget.js"]',

@@ -72,9 +72,9 @@ export function AppointmentPicker() {
     setSelectedDate(date);
     setSelectedSlot(null);
     setFetchError(null);
+    setSlots([]);
 
     if (isStaticExport) {
-      setSlots([]);
       setFetchError(null);
       return;
     }
@@ -82,33 +82,27 @@ export function AppointmentPicker() {
     setLoading(true);
 
     try {
-      let lastError = "Could not load availability.";
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        const res = await fetch(
-          withBasePath(`/api/availability?date=${encodeURIComponent(ymd)}`),
-        );
-        const data = (await res.json()) as {
-          slots?: string[];
-          error?: string;
-          detail?: string;
-        };
+      const res = await fetch(
+        withBasePath(`/api/availability?date=${encodeURIComponent(ymd)}`),
+      );
+      const data = (await res.json()) as {
+        slots?: string[];
+        error?: string;
+        detail?: string;
+      };
 
-        if (requestId !== requestSeqRef.current) return;
+      if (requestId !== requestSeqRef.current) return;
 
-        if (res.ok) {
-          setSlots(data.slots ?? []);
-          setFetchError(null);
-          return;
-        }
-
-        lastError = data.detail ?? data.error ?? "Could not load availability.";
-        if (attempt === 1) {
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
+      if (res.ok) {
+        setSlots(data.slots ?? []);
+        setFetchError(null);
+        return;
       }
 
       setSlots([]);
-      setFetchError(lastError);
+      setFetchError(
+        data.detail ?? data.error ?? "Could not load availability.",
+      );
     } catch {
       if (requestId !== requestSeqRef.current) return;
       setSlots([]);
@@ -155,6 +149,8 @@ export function AppointmentPicker() {
         <div className="flex justify-center md:justify-start">
           <Calendar
             mode="single"
+            timeZone={DTA_SCHEDULE_TZ}
+            noonSafe
             selected={selectedDate}
             onSelect={handleDateSelect}
             disabled={isDisabled}

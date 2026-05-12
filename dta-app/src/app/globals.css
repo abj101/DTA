@@ -164,7 +164,6 @@
   html {
     @apply font-sans;
     scroll-behavior: smooth;
-    scrollbar-gutter: stable;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }
