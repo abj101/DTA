@@ -35,7 +35,7 @@ const FOUNDERS = [
 export function FounderCards() {
   return (
     <LandingSection tone="base" compact>
-      <div className="dta-rise">
+      <div className="dta-rise" style={{ animationDelay: "150ms" }}>
         <h2 className={sectionLabelClassName}>Founders</h2>
         <div className="mt-dta-lg grid gap-dta-lg md:grid-cols-2 md:gap-dta-xl">
           {FOUNDERS.map((f) => (

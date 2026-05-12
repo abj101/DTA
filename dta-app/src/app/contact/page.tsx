@@ -22,15 +22,29 @@ export default function ContactPage() {
   return (
     <main className="flex flex-1 flex-col bg-dta-base">
       <LandingSection tone="base" id="book">
-        <h2 className={sectionLabelClassName}>Book Free Consultation</h2>
-        <h3 className="mt-dta-sm max-w-[65ch] text-[clamp(1.5rem,4vw,2rem)] font-semibold tracking-[-0.03em] text-dta-text-primary">
+        <h2
+          className={`${sectionLabelClassName} dta-rise`}
+          style={{ animationDelay: "0ms" }}
+        >
+          Book Free Consultation
+        </h2>
+        <h3
+          className="dta-rise mt-dta-sm max-w-[65ch] text-[clamp(1.5rem,4vw,2rem)] font-semibold tracking-[-0.03em] text-dta-text-primary"
+          style={{ animationDelay: "110ms" }}
+        >
           Let&apos;s build a plan for your student
         </h3>
-        <div className="mt-dta-xl border-t border-dta-border pt-dta-lg">
+        <div
+          className="dta-rise mt-dta-xl border-t border-dta-border pt-dta-lg"
+          style={{ animationDelay: "230ms" }}
+        >
           <AppointmentPicker />
         </div>
 
-        <div className="mt-[clamp(1.75rem,4vw,2.5rem)] border-t border-dta-border pt-dta-lg">
+        <div
+          className="dta-rise mt-[clamp(1.75rem,4vw,2.5rem)] border-t border-dta-border pt-dta-lg"
+          style={{ animationDelay: "340ms" }}
+        >
           <p className={sectionLabelClassName}>What to expect</p>
           <p className="mt-dta-sm max-w-[58ch] font-heading text-[clamp(1.25rem,2.6vw,1.5rem)] font-semibold leading-[1.2] tracking-[-0.02em] text-dta-text-primary">
             30 minutes. Free. No commitment.

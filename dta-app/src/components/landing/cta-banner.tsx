@@ -41,7 +41,10 @@ export function LandingCTABanner({ variant = "home" }: LandingCTABannerProps) {
         !isAboutVariant && "[&>div]:pb-[clamp(3rem,8vw,4rem)]",
       )}
     >
-      <div className="dta-rise rounded-dta-lg bg-dta-inverse-bg px-dta-md py-[clamp(2rem,5vw,3rem)] text-dta-inverse-text sm:px-dta-lg md:px-dta-xl md:py-[clamp(2.25rem,5vw,3.25rem)]">
+      <div
+        className="dta-rise rounded-dta-lg bg-dta-inverse-bg px-dta-md py-[clamp(2rem,5vw,3rem)] text-dta-inverse-text sm:px-dta-lg md:px-dta-xl md:py-[clamp(2.25rem,5vw,3.25rem)]"
+        style={{ animationDelay: "150ms" }}
+      >
         <div className="flex flex-col gap-dta-xl md:flex-row md:items-center md:justify-between md:gap-x-dta-xl">
           <div className="max-w-xl">
             <h2 className="font-heading text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.03em] text-dta-inverse-text">
