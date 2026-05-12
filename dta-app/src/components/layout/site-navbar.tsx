@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MenuIcon } from "lucide-react";
+import { Calendar, MenuIcon } from "lucide-react";
 
 import { sectionLabelClassName } from "@/components/landing/section";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,20 @@ export function SiteNavbar() {
           </Button>
         </div>
 
-        <div className="flex items-center md:hidden">
+        <div className="flex items-center gap-2 md:hidden">
+          <Button
+            variant="default"
+            size="default"
+            className={cn(
+              "h-9 min-h-9 gap-1.5 rounded-dta-sm border-0 bg-dta-nav-cta px-3 text-[14px] font-medium leading-none tracking-tight text-white shadow-none hover:bg-dta-nav-cta-hover",
+            )}
+            render={<Link href="/contact" />}
+            nativeButton={false}
+            aria-label="Book free consultation"
+          >
+            <Calendar className="size-3.5 shrink-0" aria-hidden />
+            <span className="leading-none whitespace-nowrap">Book Free</span>
+          </Button>
           <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange} modal>
             <SheetTrigger
               render={
