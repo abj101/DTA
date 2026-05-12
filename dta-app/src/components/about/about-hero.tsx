@@ -11,15 +11,24 @@ export function AboutHero() {
         aria-hidden
       />
       <div className="relative mx-auto max-w-6xl px-dta-md pb-dta-md pt-[clamp(2.25rem,7vw,3.75rem)] md:px-dta-lg md:pb-dta-lg">
-        <div className="dta-rise mx-auto max-w-[min(100%,52rem)]">
-          <p className={sectionLabelClassName}>Dublin Tutoring Association</p>
+        <div className="mx-auto max-w-[min(100%,52rem)]">
+          <p
+            className={`${sectionLabelClassName} dta-rise`}
+            style={{ animationDelay: "0ms" }}
+          >
+            Dublin Tutoring Association
+          </p>
           <h1
             id="about-hero-heading"
-            className="mt-dta-md font-heading text-[clamp(1.75rem,5vw,2.75rem)] font-semibold tracking-[-0.03em] text-dta-text-primary sm:text-[32px] sm:leading-[1.2]"
+            className="dta-rise mt-dta-md font-heading text-[clamp(1.75rem,5vw,2.75rem)] font-semibold tracking-[-0.03em] text-dta-text-primary sm:text-[32px] sm:leading-[1.2]"
+            style={{ animationDelay: "110ms" }}
           >
             Our Story
           </h1>
-          <p className="mt-dta-lg max-w-[65ch] text-base leading-[1.65] text-dta-text-secondary md:text-lg md:leading-relaxed">
+          <p
+            className="dta-rise mt-dta-lg max-w-[65ch] text-base leading-[1.65] text-dta-text-secondary md:text-lg md:leading-relaxed"
+            style={{ animationDelay: "230ms" }}
+          >
             We&apos;re Ayush Bandopadhyay and Ayush Bakhandi - two recent UC
             graduates who grew up in the Tri-Valley, went through the same high
             school experience your student is navigating right now.

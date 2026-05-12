@@ -33,7 +33,7 @@ const ROWS = [
 export function ApproachList() {
   return (
     <LandingSection compact>
-      <div className="dta-rise">
+      <div className="dta-rise" style={{ animationDelay: "150ms" }}>
         <h2 className={sectionLabelClassName}>How we work</h2>
         <ul className="mt-dta-xl space-y-0" role="list">
           {ROWS.map((row, i) => (
