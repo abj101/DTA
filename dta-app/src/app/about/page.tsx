@@ -4,20 +4,13 @@ import { AboutHero } from "@/components/about/about-hero";
 import { ApproachList } from "@/components/about/approach-list";
 import { FounderCards } from "@/components/about/founder-cards";
 import { LandingCTABanner } from "@/components/landing/cta-banner";
+import { SectionDivider } from "@/components/landing/section-divider";
 
 export const metadata: Metadata = {
   title: "About Us",
   description:
     "Meet the Dublin Tutoring Association founders and learn how we work with Tri-Valley families.",
 };
-
-function SectionDivider() {
-  return (
-    <div className="w-full">
-      <hr className="divider relative left-1/2 w-[calc(100vw-(2*clamp(1rem,3.5vw,3.125rem)))] max-w-none -translate-x-1/2 border-0 border-t border-dta-border" />
-    </div>
-  );
-}
 
 export default function AboutPage() {
   return (

@@ -10,10 +10,13 @@ const basePath =
       : `/${rawBase}`
     : undefined;
 
+/** Must match `turbopack.root` — Next infers a different tracing root when a parent dir has a lockfile. */
+const workspaceRoot = path.resolve(__dirname);
+
 const nextConfig: NextConfig = {
-  /** Pin Turbopack workspace root when a parent directory also has a lockfile (monorepo / nested app). */
+  outputFileTracingRoot: workspaceRoot,
   turbopack: {
-    root: path.resolve(__dirname),
+    root: workspaceRoot,
   },
   ...(staticExport
     ? {

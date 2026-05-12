@@ -163,6 +163,11 @@
   }
   html {
     @apply font-sans;
+    /* Always reserve the vertical scrollbar track so home/about (long) and contact (short)
+       use the same content width — navbar padding lines up across navigations. */
+    overflow-y: scroll;
+    /* No horizontal bar from full-bleed `100vw` dividers / footer rules */
+    overflow-x: clip;
     scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
