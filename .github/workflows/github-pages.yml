@@ -1,12 +1,13 @@
 # Static export of `dta-app` → GitHub Pages (https://<owner>.github.io/<repo>/).
 #
-# --- If the workflow fails (especially on the "Deploy" job) ---
+# The deploy job uses environment `dta-static-pages` (not `github-pages`). GitHub’s
+# default `github-pages` environment often only allows the default branch (`main`),
+# which blocks deploy-pages when this workflow runs from branch `github-pages`.
+#
+# --- Other checks ---
 # 1) Repo Settings → Pages → Build and deployment → Source = "GitHub Actions"
 #    (not "Deploy from a branch").
-# 2) Repo Settings → Environments → `github-pages` → Deployment branches:
-#    allow branch `github-pages` (or "All branches"). The auto-created environment
-#    often allows only the default branch (`main`), which blocks deploy-pages when
-#    this workflow runs from `github-pages`.
+# 2) First run: approve the `dta-static-pages` environment if GitHub prompts.
 # 3) Optional Actions Variables: NEXT_PUBLIC_CALENDLY_USERNAME, NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG
 
 name: Deploy to GitHub Pages
@@ -79,7 +80,7 @@ jobs:
       pages: write
       id-token: write
     environment:
-      name: github-pages
+      name: dta-static-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
