@@ -1,0 +1,202 @@
+@import "./design-tokens.css";
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--dta-font-sans);
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--dta-font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* DTA palette → Tailwind utilities */
+  --color-dta-base: var(--dta-bg-base);
+  --color-dta-raised: var(--dta-bg-raised);
+  --color-dta-surface: var(--dta-surface);
+  --color-dta-elevated: var(--dta-surface-elevated);
+  --color-dta-text-primary: var(--dta-text-primary);
+  --color-dta-text-secondary: var(--dta-text-secondary);
+  --color-dta-text-muted: var(--dta-text-muted);
+  --color-dta-border: var(--dta-border-subtle);
+  --color-dta-nav-link: var(--dta-nav-link);
+  --color-dta-nav-link-active: var(--dta-nav-link-active);
+  --color-dta-nav-cta: var(--dta-nav-cta-bg);
+  --color-dta-nav-cta-hover: var(--dta-nav-cta-bg-hover);
+  --color-dta-inverse-bg: var(--dta-inverse-bg);
+  --color-dta-inverse-text: var(--dta-inverse-text);
+  --color-dta-inverse-muted: var(--dta-inverse-muted);
+  --color-dta-status-surface: var(--dta-accent-status-surface);
+  --color-dta-status-text: var(--dta-accent-status-text);
+  --color-dta-status-border: var(--dta-accent-status-border);
+
+  --radius-dta-sm: var(--dta-radius-sm);
+  --radius-dta-md: var(--dta-radius-md);
+  --radius-dta-lg: var(--dta-radius-lg);
+  --radius-dta-xl: var(--dta-radius-xl);
+  --radius-pill: var(--dta-radius-pill);
+
+  --spacing-dta-xs: var(--dta-space-xs);
+  --spacing-dta-sm: var(--dta-space-sm);
+  --spacing-dta-md: var(--dta-space-md);
+  --spacing-dta-lg: var(--dta-space-lg);
+  --spacing-dta-xl: var(--dta-space-xl);
+  --spacing-section: var(--dta-space-section);
+
+  --ease-dta-premium: var(--dta-ease-premium);
+  --duration-dta-hover: var(--dta-duration-hover);
+  --duration-dta-card: var(--dta-duration-card);
+  --duration-dta-section: var(--dta-duration-section);
+
+  --shadow-dta-bloom: var(--dta-shadow-accent-bloom);
+  --shadow-dta-lift: var(--dta-shadow-lift);
+}
+
+/* shadcn semantic tokens → DTA light editorial */
+:root {
+  --dta-font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --background: var(--dta-bg-base);
+  --foreground: var(--dta-text-primary);
+  --card: var(--dta-surface);
+  --card-foreground: var(--dta-text-primary);
+  --popover: var(--dta-surface-elevated);
+  --popover-foreground: var(--dta-text-primary);
+  --primary: var(--dta-inverse-bg);
+  --primary-foreground: var(--dta-inverse-text);
+  --secondary: var(--dta-surface-elevated);
+  --secondary-foreground: var(--dta-text-primary);
+  --muted: var(--dta-bg-raised);
+  --muted-foreground: var(--dta-text-muted);
+  --accent: var(--dta-bg-raised);
+  --accent-foreground: var(--dta-text-primary);
+  --destructive: oklch(0.55 0.2 25);
+  --border: var(--dta-border-subtle);
+  --input: var(--dta-border-subtle);
+  --ring: oklch(0.45 0.02 260);
+  --chart-1: var(--dta-accent-status-text);
+  --chart-2: var(--dta-text-secondary);
+  --chart-3: var(--dta-text-muted);
+  --chart-4: oklch(0.7 0.02 260);
+  --chart-5: oklch(0.55 0.02 260);
+  --radius: var(--dta-radius-md);
+  --sidebar: var(--dta-surface);
+  --sidebar-foreground: var(--dta-text-primary);
+  --sidebar-primary: var(--dta-inverse-bg);
+  --sidebar-primary-foreground: var(--dta-inverse-text);
+  --sidebar-accent: var(--dta-bg-raised);
+  --sidebar-accent-foreground: var(--dta-text-primary);
+  --sidebar-border: var(--dta-border-subtle);
+  --sidebar-ring: oklch(0.45 0.02 260);
+}
+
+@keyframes dta-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dta-rise {
+    animation: dta-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dta-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  html::-webkit-scrollbar {
+    scrollbar-width: thin;
+    width: 10px;
+    height: 10px;
+  }
+  html::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  html::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  html.is-scrollbar-hover,
+  html.is-scrolling {
+    scrollbar-color: color-mix(in oklab, var(--foreground) 45%, transparent)
+      transparent;
+  }
+  html.is-scrollbar-hover::-webkit-scrollbar-thumb,
+  html.is-scrolling::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--foreground) 45%, transparent);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}

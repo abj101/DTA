@@ -1,54 +1,77 @@
 ---
 name: Dublin Tutoring Association
-description: Cinematic dark editorial UI derived from Analysis.md; monochrome base with sparse cool accents and editorial type.
+description: >-
+  Editorial tutoring brand on a minimal marketing shell. Color, spacing, radius, and motion
+  cadence match measured tokens from https://omlx.ai/ (inline CSS). Voice and structure still
+  follow References/FlierReference.png; serif accent and inverse bands are DTA-specific overlays.
+source_landing_reference: "https://omlx.ai/"
 colors:
-  bg-base: "#050505"
-  bg-raised: "#0B0B0C"
-  surface: "#111214"
-  surface-elevated: "#17181B"
-  text-primary: "#F5F5F7"
-  text-secondary: "#B4B4B8"
-  text-muted: "#8A8A8E"
-  border-subtle: "#262628"
-  accent-blue: "#6EA8FF"
-  accent-cyan: "#72D6FF"
-  accent-purple: "#8B7DFF"
+  bg-base: "#FFFFFF"
+  bg-raised: "#F7F6F3"
+  bg-soft: "#F0EEEA"
+  surface: "#FFFFFF"
+  surface-elevated: "#F7F6F3"
+  text-primary: "#141312"
+  text-secondary: "#5A5750"
+  text-muted: "#9E9B94"
+  text-strong: "#2A2825"
+  border-subtle: "#E2DFD8"
+  inverse-bg: "#141312"
+  inverse-bg-accent: "#1A1A1A"
+  inverse-text: "#FFFFFF"
+  inverse-muted: "#888888"
+  accent-status-surface: "#F0FAF5"
+  accent-status-border: "#C0E8D0"
+  accent-status-text: "#1D7A4A"
 typography:
-  display:
+  display-sans:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "clamp(3.5rem, 8vw, 6.875rem)"
+    fontSize: "clamp(2.5rem, 6vw, 4.125rem)"
     fontWeight: 700
-    lineHeight: 0.92
-    letterSpacing: "-0.05em"
+    lineHeight: 1.05
+    letterSpacing: "-0.03em"
+  display-serif-accent:
+    fontFamily: '"Libre Baskerville", Georgia, "Times New Roman", serif'
+    fontStyle: italic
+    fontWeight: 400
+    fontSize: inherit
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
   headline:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "32px"
+    fontSize: "clamp(1.625rem, 4vw, 2.375rem)"
     fontWeight: 600
-    lineHeight: 1.2
-    letterSpacing: "-0.03em"
+    lineHeight: 1.1
+    letterSpacing: "-0.025em"
   title:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "20px"
+    fontSize: "18px"
     fontWeight: 600
-    lineHeight: 1.3
+    lineHeight: 1.35
     letterSpacing: "-0.02em"
   body:
     fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.65
-    letterSpacing: "normal"
+    letterSpacing: normal
   label:
     fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "11px"
     fontWeight: 500
     lineHeight: 1.4
-    letterSpacing: "0.18em"
+    letterSpacing: "0.16em"
+  eyebrow-mono:
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+    fontSize: "11px"
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: "0.08em"
 rounded:
-  sm: "12px"
-  md: "18px"
-  lg: "24px"
-  xl: "32px"
+  sm: "6px"
+  md: "8px"
+  lg: "12px"
+  xl: "16px"
   pill: "999px"
 spacing:
   xs: "4px"
@@ -56,152 +79,114 @@ spacing:
   md: "16px"
   lg: "24px"
   xl: "32px"
-  section: "120px"
+  "2xl": "40px"
+  "3xl": "48px"
+  band: "56px"
+  section: "100px"
+  gutter: "40px"
+  gutter-sm: "20px"
+  hero-block-start: "160px"
+  hero-block-end: "120px"
+  nav-height: "60px"
 components:
   button-primary:
-    backgroundColor: "{colors.text-primary}"
-    textColor: "{colors.bg-base}"
-    rounded: "{rounded.pill}"
-    padding: "14px 22px"
-    typography: "{typography.title}"
+    backgroundColor: "{colors.inverse-bg}"
+    textColor: "{colors.inverse-text}"
+    rounded: "{rounded.md}"
+    padding: "12px 24px"
+    typography: "14px / 500 sans"
   button-secondary:
-    backgroundColor: "rgba(255,255,255,0.04)"
-    textColor: "{colors.text-primary}"
-    rounded: "{rounded.pill}"
-    padding: "14px 22px"
-    typography: "{typography.title}"
-  card-surface:
-    backgroundColor: "rgba(255,255,255,0.03)"
-    textColor: "{colors.text-primary}"
-    rounded: "{rounded.lg}"
-    padding: "{spacing.lg}"
+    backgroundColor: transparent
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.sm}"
+    typography: "14px / 400 sans; underline via border-bottom on hairline"
+  rule-divider:
+    borderTop: "1px solid {colors.border-subtle}"
+  numbered-row:
+    numberColor: "{colors.text-muted}"
+    gapToCopy: "{spacing.md}"
+  footer-inverse-band:
+    backgroundColor: "{colors.inverse-bg}"
+    textColor: "{colors.inverse-text}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.band}"
 ---
 
-# Design System: Dublin Tutoring Association
+# Design system · Dublin Tutoring Association
 
-## Overview
+## North star
 
-**Creative North Star: "Quiet authority after hours."**
+**Printed clarity on a screen:** warm structure from the flyer, pace and chrome from a calm product landing. Public copy stays human and specific ([PRODUCT.md](PRODUCT.md)); this file only locks **measurable** surfaces.
 
-Parents and students often browse tutors in the evening, on one screen, comparing trust signals quickly. This system adapts the Analysis.md (OMX-inspired) language for DTA: **precision, restraint, and premium calm** instead of loud franchise marketing. The surface reads editorial and expensive, not packaged or toy-like. Cool accents suggest clarity and focus (aligned with STEM credibility) without neon gimmicks.
+**Scene:** A guardian scrolls indoors on a phone after school. High-contrast type, soft neutrals, hairline rules instead of card stacks; emphasis bands stay rare and purposeful.
 
-The Analysis source emphasizes monochrome contrast, soft emissive light, and cinematic spacing. For DTA, that translates to **credibility through composition**, not through busy illustration or gradient-heavy hero clichés. PRODUCT.md rejects generic SaaS shells and tutoring-chain visuals; this palette stays dark and minimal but **human-warm in copy and photography choices**, not in rainbow gradients or playful UI chrome.
+## References
 
-**Key characteristics:**
+| Source | Role |
+| --- | --- |
+| [References/FlierReference.png](References/FlierReference.png) | Headline pairing, tracked labels, rules, numerals, circular portraits, inverse CTA block. |
+| [https://omlx.ai/](https://omlx.ai/) | Measured palette (`:root`), spacing rhythm, radii, mono eyebrows, grid-with-hairlines grammar. Use patterns, not MLX branding or product chrome. |
 
-- Dark tonal stack (`bg-base` → `surface-elevated`) for depth without busy illustrations.
-- Accents used sparingly for CTAs, links, and focal highlights (see Color Frequency Rule).
-- Editorial typography (Inter per Analysis and plan.md); hierarchy from scale and weight, not from rainbow fills.
-- Motion is atmospheric and short; respect `prefers-reduced-motion` (PRODUCT.md).
+## Color · from omlx.ai `:root`
 
-## Colors
+Strategy: **restrained** neutrals, near-black for primary actions, one green family for benign chips only.
 
-Palette character: **deep charcoal canvas with ice-cool signal colors** (blue, cyan, purple) reserved for interaction and emphasis.
+| Token | Hex | Notes |
+| --- | --- | --- |
+| Page / surface | `#FFFFFF` | Default canvas (`--white`). |
+| Raised wash | `#F7F6F3` | Alternate sections (`--off-white`). |
+| Soft ribbon | `#F0EEEA` | Quiet fills (`--gray-100`). |
+| Hairlines | `#E2DFD8` | Borders (`--gray-200`). |
+| Muted copy | `#9E9B94` | Metadata (`--gray-400`). |
+| Secondary copy | `#5A5750` | Supporting text (`--gray-600`). |
+| Strong tables | `#2A2825` | Dense UI (`--gray-800`). |
+| Ink | `#141312` | Primary text + inverse fill (`--black`). |
+| Accent black | `#1A1A1A` | Secondary inverse surfaces (`--accent`). |
+| Status fill / stroke / text | `#F0FAF5` / `#C0E8D0` / `#1D7A4A` | Hero badge recipe on omlx (plus `--green`). |
+| On-inverse muted | `#888888` | Pull quotes / secondary on charcoal bands (install block pattern). |
 
-### Primary
-
-- **Signal Blue** (`#6EA8FF`): Primary CTA outlines, key links, and focus-adjacent highlights. Use where you want the eye to land once per section.
-
-### Secondary
-
-- **Aqua Cyan** (`#72D6FF`): Secondary highlights, subtle glows, and supportive accents (badges, icon strokes). Pairs with radial glow atmosphere in hero backgrounds.
-
-### Tertiary
-
-- **Iris Purple** (`#8B7DFF`): Tertiary emphasis, alternate chart or diagram strokes if data appears later. Do not stack all three accents in one component.
-
-### Neutral
-
-- **Void Base** (`#050505`): Page background root.
-- **Lifted Void** (`#0B0B0C`): Alternate section bands and footer grounding.
-- **Surface** (`#111214`): Default content panels and sticky regions.
-- **Surface Elevated** (`#17181B`): Hover or emphasized panels one step above surface.
-- **Text Primary** (`#F5F5F7`): Headlines and primary body (slightly tinted off-white; avoid pure `#FFFFFF` as global fill).
-- **Text Secondary** (`#B4B4B8`): Supporting sentences, metadata, nav labels at rest.
-- **Text Muted** (`#8A8A8E`): Captions, timestamps, legal footer.
-- **Border Subtle** (`#262628`): 1px dividers and card strokes replacing harsh white hairlines.
-
-### Atmosphere (implementation)
-
-- **Surface wash:** vertical fade `linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))` for section transitions.
-- **Glow wash:** radial `rgba(114,214,255,0.15)` fading to transparent by 70% for hero depth only, not behind body copy blocks.
-
-### Named rules
-
-**The Color Frequency Rule.** On any viewport, combined accent-filled area (solid fills plus thick strokes) stays roughly **at or below 10%** of visible UI. Monochrome carries the layout; accents answer "what do I do next?"
-
-**The No Rainbow Hero Rule.** Do not combine blue, cyan, and purple in a single headline block or button row. Pick **one** accent per focal component.
+Prefer OKLCH in new components when you need interpolation; hex above matches the live reference export.
 
 ## Typography
 
-**Display / UI:** Inter with `system-ui` fallback (per Analysis.md and `plan.md` Google Fonts direction).
+omlx.ai ships **DM Sans** plus **DM Mono** from Google Fonts; DTA currently wires **Inter** and **Libre Baskerville** italic in `layout.tsx` for the flyer clause.
 
-**Character:** Cinematic and precise, not playful. Tight negative tracking on large display lines signals confidence; body stays readable for multilingual households (PRODUCT.md).
+- **Sans:** Inter (swap for DM Sans if you want a closer pixel match to the reference).
+- **Serif accent:** Libre Baskerville italic **only** inside the hero clause (flyer lineage).
+- **Eyebrows:** Mono cadence (`DM Mono` on omlx); here `eyebrow-mono` token covers section labels.
 
-### Hierarchy
+Hierarchy: display sans (700, fluid clamp), then headline clamp, title 18/600, body 16/400 (cap measure **65 to 75ch**), then uppercase micro labels.
 
-- **Display** (700, `clamp(3.5rem, 8vw, 6.875rem)`, line-height 0.92, letter-spacing -0.05em): Landing hero only; max two lines before subhead.
-- **Headline** (600, 32px, line-height 1.2, letter-spacing -0.03em): Section titles (WHY TUTORING, WHAT WE TEACH).
-- **Title** (600, 20px): Card titles, navbar emphasis, pull quotes.
-- **Body** (400, 16px, line-height 1.65): All paragraph content; cap line length **65–75ch** in layout CSS.
-- **Label** (500, 11px, letter-spacing 0.18em, uppercase): Eyebrows and section kicker labels.
+## Layout & spacing
 
-### Named rules
+Deduped scale from omlx padding/gaps: **4 · 8 · 16 · 24 · 32 · 40 · 48 · 56 · 100** px, plus **gutter 40** ( **20** mobile), **hero block 160 / 120**, **nav height 60**.
 
-**The Restraint Rule.** No more than **five** distinct type sizes on a public page. Decorative sizes break hierarchy and scan speed.
+- Default section vertical rhythm: `spacing.section` with gutters; tighten on small screens (omlx uses ~60px block padding at ≤640px).
+- Prefer **full-width rules** between ideas over identical card grids ([PRODUCT.md](PRODUCT.md) anti-patterns).
 
-## Elevation
+## Radii
 
-Depth comes from **tonal steps** (bg → surface → elevated) plus **soft emissive glow**, not from heavy drop shadows. Analysis favors `box-shadow: 0 0 40px rgba(110,168,255,0.08)` for rare glow on primary actions or hero ornaments.
+`6px` chrome pills · `8px` primary CTA · `12px` framed grids / previews · `16px` emphasized bands · pill `999px` for status badges.
 
-### Shadow vocabulary
+## Elevation & motion
 
-- **Accent bloom:** `0 0 40px rgba(110,168,255,0.08)` for primary button hover or hero focal orb only.
-- **Flat panels:** default cards use border (`border-subtle`) without shadow.
+Depth is mostly flat: stepped backgrounds + hairlines. Optional lift shadow mirrors omlx dashboard card: `0 8px 40px rgba(20, 19, 18, 0.12)`.
 
-### Named rules
+Motion: hover fades **~150ms**; section reveals **~600 to 800ms** with `cubic-bezier(0.22, 1, 0.36, 1)`. Respect `prefers-reduced-motion`. Do not animate layout-driving properties.
 
-**The Flat Rest Rule.** Cards sit flat at idle. Glow appears for **interaction or hero focal**, not for every grid tile.
+## Components (short)
 
-## Components
+- **Primary control:** Ink fill, white label, `8px` radius, generous horizontal padding.
+- **Quiet control:** Text/link with hairline underline; stays gray600 until hover darkens.
+- **Status chip:** Green text on `#F0FAF5`, `1px` `#C0E8D0` border, pill radius.
+- **Inverse band:** Charcoal container (`#141312`), white headline, `#888` supporting copy; reserve for pricing / consultation emphasis (flyer footer analogue).
 
-### Buttons
+## Guardrails
 
-- **Shape:** Pill (`border-radius: 999px`) per Analysis.
-- **Primary:** Solid fill `text-primary` background, `bg-base` text, padding **14px 22px**, weight 600. Hover: translateY(-1px), opacity ~0.92; no layout-animation on unrelated properties.
-- **Secondary:** `rgba(255,255,255,0.04)` fill, `border-subtle` 1px border, same padding. Hover brightens border toward ~16% white equivalent without adding new shadow layers.
+**Do:** Let numerals, rules, and portraits carry proof; keep one accent family per component; verify WCAG AA for ink-on-paper and white-on-charcoal.
 
-### Cards
-
-- **Default:** Prefer **solid** `surface` or `rgba(255,255,255,0.03)` fill with **1px** `border-subtle` and **radius lg (24px)**. Use backdrop blur only for **mobile Sheet / drawer** (shadcn Sheet per plan), not for every desktop card.
-
-### Navigation
-
-- **Desktop:** Ghost text links; active state uses `text-primary` or thin underline with `accent-blue`.
-- **Mobile:** Right Sheet with surface background and standard focus rings for WCAG (PRODUCT.md AA target).
-
-### Chips / badges
-
-- **Subject badges:** Muted treatment: `surface-elevated` fill, `text-secondary`, optional **one** accent dot or left rule **under 2px** (avoid thick side-stripe accent bars on list rows per house rules).
-
-## Do's and Don'ts
-
-**Do**
-
-- Let typography and whitespace carry the premium feel; keep imagery authentic when added (team, Tri-Valley context).
-- Use one orchestrated page-load reveal sequence (staggered fade-up) or skip motion entirely on low-power devices; always honor `prefers-reduced-motion`.
-- Pair this dark system with **high-contrast text** against surfaces; verify AA on real components.
-- Translate Analysis timing: hover **150ms**, card transitions **220ms**, section reveals **500–700ms**, ease `cubic-bezier(0.22, 1, 0.36, 1)`.
-
-**Don't**
-
-- Don't import Analysis **literally** as "AI infrastructure" or GPU metaphors in user-facing copy; keep infrastructure vocabulary internal to this doc only.
-- Don't use loud multi-stop gradients behind text for emphasis (no gradient-text tricks).
-- Don't default to frosted glass cards across the whole site; solid tonal surfaces read clearer for families skimming on phones.
-- Don't reuse identical icon-plus-card grids without varying rhythm (PRODUCT anti-pattern overlap).
+**Don’t:** Import MLX logos or product UI; don’t default to gradient text, glass stacks, or thick side-stripe accents; don’t spam uniform three-icon card grids.
 
 ---
 
-_Source tokens and motion timings trace to `References/Analysis.md` (OMLX-inspired design.md). Implementation should prefer OKLCH in CSS when the stack allows; hex above satisfies Stitch-style tooling and Tailwind token export._
-
-**Companion implementation file:** `design-tokens.css` at repo root exposes the same values as `--dta-*` CSS variables; see `plan.md` (section **Design tokens & Tailwind wiring**) for Tailwind `theme.extend` mapping after `shadcn init`.
+**Implementation sync:** [dta-app/src/app/design-tokens.css](dta-app/src/app/design-tokens.css) and [dta-app/src/app/globals.css](dta-app/src/app/globals.css). Root markdown + CSS tokens win on drift.

@@ -1,0 +1,82 @@
+/**
+ * DTA semantic tokens. Palette, radius, spacing, and motion cadence are aligned to
+ * measured values from https://omlx.ai/ inline `:root` + layout rules (snapshot 2026-05).
+ * Flier voice (serif accent, inverse bands) stays in DESIGN.md; these tokens supply the shell.
+ */
+
+:root {
+  /* —— Color (source: omlx.ai —white … —green + badge extras) —— */
+  --dta-bg-base: #ffffff;
+  --dta-bg-raised: #f7f6f3;
+  --dta-bg-soft: #f0eeea;
+  --dta-surface: #ffffff;
+  --dta-surface-elevated: #f7f6f3;
+
+  --dta-text-primary: #141312;
+  --dta-text-secondary: #5a5750;
+  --dta-text-muted: #9e9b94;
+  --dta-text-strong: #2a2825;
+
+  --dta-border-subtle: #e2dfd8;
+
+  /* Nav text / CTA (reference greys + dark pill CTA) */
+  --dta-nav-link: #5f6368;
+  --dta-nav-link-active: #000000;
+  --dta-nav-cta-bg: #1c1e21;
+  --dta-nav-cta-bg-hover: #2a2d31;
+
+  --dta-inverse-bg: #141312;
+  --dta-inverse-bg-accent: #1a1a1a;
+  --dta-inverse-text: #ffffff;
+  --dta-inverse-muted: #888888;
+
+  --dta-accent-status-text: #1d7a4a;
+  --dta-accent-status-surface: #f0faf5;
+  --dta-accent-status-border: #c0e8d0;
+
+  /* Type (implementation often uses next/font Inter + Libre Baskerville; omlx ref is DM Sans / DM Mono) */
+  --dta-font-sans: Inter, system-ui, sans-serif;
+  --dta-font-serif-accent: "Libre Baskerville", Georgia, "Times New Roman", serif;
+  --dta-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "DM Mono", monospace;
+
+  /* Radius (omlx: 6 nav / tabs, 8 primary CTA, 12 grid + screenshots, 16 band sections) */
+  --dta-radius-sm: 6px;
+  --dta-radius-md: 8px;
+  --dta-radius-lg: 12px;
+  --dta-radius-xl: 16px;
+  --dta-radius-pill: 999px;
+
+  /* Spacing (deduped from repeated padding/gap values on omlx.ai) */
+  --dta-space-xs: 4px;
+  --dta-space-sm: 8px;
+  --dta-space-md: 16px;
+  --dta-space-lg: 24px;
+  --dta-space-xl: 32px;
+  --dta-space-2xl: 40px;
+  --dta-space-3xl: 48px;
+  --dta-space-band: 56px;
+  --dta-space-section: 100px;
+  --dta-space-gutter: 40px;
+  --dta-space-gutter-sm: 20px;
+  --dta-space-hero-block-start: 160px;
+  --dta-space-hero-block-end: 120px;
+  --dta-space-nav-height: 60px;
+
+  /* Motion (omlx hover 0.15s; section fades 0.6–0.8s cubic-bezier(0.22, 1, 0.36, 1)) */
+  --dta-ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --dta-duration-hover: 150ms;
+  --dta-duration-card: 200ms;
+  --dta-duration-section: 650ms;
+
+  /* Elevation (dashboard light card on omlx.ai) */
+  --dta-shadow-lift: 0 8px 40px rgba(20, 19, 18, 0.12);
+  --dta-shadow-subtle: 0 2px 8px rgba(20, 19, 18, 0.06);
+
+  --dta-shadow-accent-bloom: var(--dta-shadow-subtle);
+
+  --dta-wash-vertical: linear-gradient(
+    180deg,
+    rgba(20, 19, 18, 0.03),
+    rgba(20, 19, 18, 0)
+  );
+}

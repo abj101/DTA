@@ -8,7 +8,7 @@
 - **Hosting:** Vercel
 - **UI Components:** shadcn/ui
 - **Scheduling:** Calendly API + custom shadcn picker UI
-- **Contact form:** Formspree
+- **Contact form:** First-party `POST /api/contact` + **Nodemailer** over SMTP (open-source path; no Formspree)
 - **Fonts:** Google Fonts
 
 ---
@@ -231,7 +231,7 @@ No shadcn components required — plain semantic HTML with Tailwind.
 
 - Section label: `WHAT WE TEACH`
 - Render each subject as `<Badge variant="secondary">` — decorative only, no interactivity, no onClick
-- Subjects: Algebra · Geometry · Pre-Calc · Calculus · Biology · Chemistry · Physics · English · SAT/ACT Prep · AP Courses · College Essays
+- Subjects: Algebra · Geometry · Pre-Calc · Calculus · Biology · Chemistry · Physics · English · AP Courses · College Essays
 
 ### `<PricingBlock>`
 
@@ -340,10 +340,10 @@ No shadcn components required — plain heading + paragraph with Tailwind.
   - Name → `<Input type="text" />`
   - Email → `<Input type="email" />`
   - Grade level → `<Select>` with `<SelectItem>` for 6th–12th
-  - Subject of interest → `<Select>` with `<SelectItem>` for Math · Science · English · AP Courses · College Prep · SAT/ACT · Other
+  - Subject of interest → `<Select>` with `<SelectItem>` for Math · Science · English · AP Courses · College Prep · Other
   - Message → `<Textarea rows={5} />`
   - Submit → `<Button type="submit">Send Message →</Button>`
-- Form action: Formspree endpoint `[FOUNDERS TO ADD after creating Formspree account]`
+- Client posts JSON to **`POST /api/contact`** (same-origin). Server validates with **Zod**, sends mail via **Nodemailer** using **server-only SMTP env vars** (see **Contact form — SMTP** below). Includes an optional honeypot field (`website`) kept visually hidden; non-empty submissions are rejected.
 - On success: replace form with an inline `<p>` confirmation: *"Thanks! We'll be in touch soon."* — no redirect
 
 ---
@@ -379,7 +379,7 @@ No shadcn components required — plain heading + paragraph with Tailwind.
 3. **shadcn MCP → add `Sheet`, `Button`** → build `<Navbar>` (with mobile drawer) and `<Footer>`
 4. **shadcn MCP → add `Card`, `Separator`, `Badge`** → build Landing Page top to bottom
 5. **shadcn MCP → add `Avatar`, `AvatarImage`, `AvatarFallback`** → build About Page top to bottom
-6. **shadcn MCP → add `Calendar`, `Skeleton`, `Input`, `Textarea`, `Select`, `Label`** → build Contact Page: `<AppointmentPicker>`, wire `/api/availability`, wire Formspree form
+6. **shadcn MCP → add `Calendar`, `Skeleton`, `Input`, `Textarea`, `Select`, `Label`** → build Contact Page: `<AppointmentPicker>`, wire `/api/availability`, wire **`POST /api/contact`** + SMTP for `<MessageForm>`
 7. Mobile responsiveness pass across all pages
 8. Add `not-found.tsx` — branded 404 page with site nav, footer, and link back to home
 
@@ -670,6 +670,36 @@ User picks slot → window.open(calendly.com/dtutoring/free-consultation?date=..
 
 ---
 
+## Contact form — SMTP (`POST /api/contact`)
+
+The contact form does **not** use a third-party form host. The browser sends JSON to **`app/api/contact/route.ts`**, which validates the payload and sends email through **Nodemailer** (MIT license).
+
+### Environment variables
+
+Add to `.env.local` (local) and Vercel (production). **Do not** prefix these with `NEXT_PUBLIC_`; they must stay server-only.
+
+| Variable | Required | Notes |
+|----------|----------|--------|
+| `SMTP_HOST` | Yes | e.g. `smtp.gmail.com`, Amazon SES SMTP endpoint, Mailtrap host |
+| `SMTP_PORT` | No | Default **`587`**. Use **`465`** with `SMTP_SECURE=true` if your provider requires implicit SSL |
+| `SMTP_SECURE` | No | Set to **`true`** or **`1`** for SSL on port 465 |
+| `SMTP_USER` | Usually | SMTP username (often the mailbox email) |
+| `SMTP_PASS` | Usually | SMTP password or app-specific password |
+| `CONTACT_TO_EMAIL` | Yes | Recipient inbox (e.g. `tutoring.dta@gmail.com`) |
+| `CONTACT_FROM` | No | Sender address your provider accepts; defaults to **`SMTP_USER`** if omitted |
+
+If required SMTP variables are missing, the route responds with **503** and a generic configuration message.
+
+### Operational notes
+
+- **Gmail / Google Workspace:** Prefer an **App Password** or Workspace SMTP relay; avoid storing a raw account password in env when 2FA is enabled.
+- **Development:** Use [Mailtrap](https://mailtrap.io) or similar SMTP sandbox to capture messages without hitting a real inbox.
+- **Spam:** The UI includes a honeypot field; stronger measures (CAPTCHA, rate limiting) can be added later if needed.
+
+See **`dta-app/.env.example`** for a copy-paste template alongside Calendly vars.
+
+---
+
 ## Image Handling
 
 All images must use `next/image` with explicit `width`, `height`, and `alt` props. Applies to founder photos in `<FounderCards>` and any other images added during build. Never use a plain `<img>` tag.
@@ -682,7 +712,7 @@ All images must use `next/image` with explicit `width`, `height`, and `alt` prop
 - [ ] Generate Calendly personal API token → save securely
 - [ ] Call `GET /event_types` once to retrieve event type UUID → save for env vars
 - [ ] Add all env vars to `.env.local` and Vercel project settings (see Calendly API section)
-- [ ] Create Formspree account → create form → copy endpoint URL
+- [ ] Configure SMTP + contact env vars for `POST /api/contact` (see **Contact form — SMTP** above and `dta-app/.env.example`)
 - [ ] Write "Our Story" paragraph (2–3 sentences)
 - [ ] Write each tutor bio (3–4 sentences each)
 - [ ] Prepare founder photos (high res, square or portrait)

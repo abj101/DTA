@@ -1,0 +1,79 @@
+# Builds the Next app as a static site and publishes to GitHub Pages (project site:
+# https://<owner>.github.io/<repo>/).
+#
+# Runs only on branch `github-pages` (not `main`). Merge or rebase `main` into
+# `github-pages` when you want to refresh the static site. Vercel should use `main`
+# (see dta-app/vercel.json — deployments for `github-pages` are disabled there).
+#
+# Repo settings → Pages → Build and deployment: source "GitHub Actions".
+# Optional: add repository Variables (Settings → Secrets and variables → Actions → Variables):
+#   NEXT_PUBLIC_CALENDLY_USERNAME, NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [github-pages]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dta-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: dta-app
+
+      - name: Drop App Router API routes
+        run: rm -rf src/app/api
+        working-directory: dta-app
+
+      - name: Clean Next build cache
+        run: rm -rf .next
+        working-directory: dta-app
+
+      - name: Static export
+        run: npm run build
+        working-directory: dta-app
+        env:
+          STATIC_EXPORT: "true"
+          NEXT_PUBLIC_STATIC_EXPORT: "true"
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          NEXT_PUBLIC_CALENDLY_USERNAME: ${{ vars.NEXT_PUBLIC_CALENDLY_USERNAME }}
+          NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG: ${{ vars.NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG }}
+
+      - name: Disable Jekyll on GitHub Pages
+        run: touch .nojekyll
+        working-directory: dta-app/out
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dta-app/out
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
