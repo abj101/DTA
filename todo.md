@@ -155,6 +155,7 @@ From [plan.md — Pre-Build Requirements (Founders)](./plan.md):
 - [ ] Write "Our Story" paragraph (2–3 sentences)
 - [ ] Write each tutor bio (3–4 sentences each)
 - [ ] Founder photos (high res, square or portrait) for `<FounderCards>`
+- [ ] Vercel: set project **Root Directory** to `dta-app` (see [`dta-app/DEPLOY.md`](./dta-app/DEPLOY.md)); clear repo-root install/build overrides
 - [ ] Register domain → connect to Vercel
 
 ---

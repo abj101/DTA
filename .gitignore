@@ -1,2 +1,2 @@
-# Mirrored by dta-app/scripts/vercel-postbuild.mjs on Vercel monorepo builds
+# Accidental build artifacts at repository root (app lives in dta-app/)
 .next/
