@@ -4,21 +4,21 @@ import { LandingSection, sectionLabelClassName } from "./section";
 
 const ITEMS = [
   {
-    title: "Rising Academic Pressure",
+    title: "Math: Algebra 1 - Calculus BC",
   },
   {
-    title: "Changing College Landscape",
+    title: "Science: Biology, Chemistry, Physics, & AP",
   },
   {
-    title: "Ineffective Study Habits",
+    title: "Essay Review, Medicine and Computer Science Track Guidance",
   },
 ] as const;
 
 export function ProblemCards() {
   return (
-    <LandingSection id="why-tutoring" tone="base" compact>
+    <LandingSection id="courses-covered" tone="base" compact>
       <div className="dta-rise" style={{ animationDelay: "150ms" }}>
-        <h2 className={sectionLabelClassName}>Why tutoring?</h2>
+        <h2 className={sectionLabelClassName}>Courses Covered</h2>
         <ol className="mt-dta-md list-none space-y-0 p-0">
           {ITEMS.map((item, i) => (
             <li key={item.title}>

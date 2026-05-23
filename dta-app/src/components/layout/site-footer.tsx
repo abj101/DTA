@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import {
   CONTACT_EMAIL,
@@ -15,11 +18,16 @@ const FOOTER_SECTION_TITLE_CLASS =
   "font-mono text-[11px] uppercase tracking-[0.14em] text-dta-text-muted";
 
 export function SiteFooter() {
+  const pathname = usePathname();
+
   return (
-    <footer className="mt-auto bg-dta-base">
+    <footer key={pathname} className="mt-auto bg-dta-base">
       <div className="mx-auto max-w-6xl px-dta-md md:px-dta-lg">
         <div className="mx-auto max-w-[min(100%,52rem)]">
-          <div className="relative py-[clamp(2.25rem,4vw,4rem)] before:absolute before:left-1/2 before:top-0 before:h-px before:w-[calc(100vw-(2*clamp(0.75rem,3vw,2.8125rem)))] before:max-w-none before:-translate-x-1/2 before:bg-dta-border before:content-['']">
+          <div
+            className="dta-rise relative py-[clamp(2.25rem,4vw,4rem)] before:absolute before:left-1/2 before:top-0 before:h-px before:w-[calc(100vw-(2*clamp(0.75rem,3vw,2.8125rem)))] before:max-w-none before:-translate-x-1/2 before:bg-dta-border before:content-['']"
+            style={{ animationDelay: "150ms" }}
+          >
             <div className="grid gap-y-dta-xl md:grid-cols-[minmax(0,1.65fr)_minmax(0,auto)] md:items-start md:gap-x-[clamp(2rem,5vw,4.5rem)]">
               <div className="max-w-[28rem] space-y-dta-md">
                 <p className="font-heading text-base font-semibold tracking-tight text-dta-text-primary">

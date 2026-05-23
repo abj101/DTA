@@ -29,9 +29,9 @@ export function AboutHero() {
             className="dta-rise mt-dta-lg max-w-[65ch] text-base leading-[1.65] text-dta-text-secondary md:text-lg md:leading-relaxed"
             style={{ animationDelay: "230ms" }}
           >
-            We&apos;re Ayush Bandopadhyay and Ayush Bakhandi - two recent UC
-            graduates who grew up in the Tri-Valley, went through the same high
-            school experience your student is navigating right now.
+            Yes, we&apos;re both named Ayush. We&apos;re also both recent UC
+            graduates who grew up in the Tri-Valley and went through the same
+            high school experience your student is navigating right now.
             <br />
             <br />
             Throughout college, we kept hearing from families in our community:
@@ -39,8 +39,7 @@ export function AboutHero() {
             through junior-year classes? What started as informal mentoring
             quickly became something we were doing more and more. After enough
             families reached out, we realized making our experiences and
-            knowledge available to more students was the next step. DTA is our
-            way of giving back to the community we grew up in.
+            knowledge available to more students was the next step.
           </p>
         </div>
       </div>

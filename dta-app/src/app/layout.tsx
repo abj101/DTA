@@ -5,8 +5,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNavbar } from "@/components/layout/site-navbar";
 import { ScrollbarVisibility } from "@/components/layout/scrollbar-visibility";
-import { CalendlyScript } from "@/components/CalendlyScript";
-
 import "./globals.css";
 
 const inter = Inter({
@@ -64,17 +62,10 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${geistMono.variable} ${libreBaskerville.variable} h-full antialiased`}
     >
-      <head>
-        <link
-          href="https://assets.calendly.com/assets/external/widget.css"
-          rel="stylesheet"
-        />
-      </head>
       <body className="flex min-h-full flex-col bg-background">
-        <CalendlyScript />
         <ScrollbarVisibility />
         <SiteNavbar />
-        <div className="flex flex-1 flex-col">{children}</div>
+        <div className="site-content flex flex-1 flex-col">{children}</div>
         <SiteFooter />
         <Analytics />
       </body>

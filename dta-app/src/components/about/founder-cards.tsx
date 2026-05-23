@@ -14,7 +14,7 @@ const FOUNDERS = [
     name: "Ayush Bakhandi",
     schoolLine: "DHS/Athenian '22 · UC Berkeley '25",
     degreeLine: "B.S. Molecular Environmental Biology",
-    bio: "[FOUNDER TO WRITE — 3–4 sentences]",
+    bio: "With over 6 years of tutoring experience, Ayush brings both depth of knowledge and a genuine passion for student growth. As a Dean's List and Honors UC Berkeley graduate, Ayush approaches teaching with a focus on building confidence and curiosity while mastering subject material. He currently works as a medical assistant at a glaucoma clinic and conducts research at UCSF, keeping him closely connected to the sciences he loves to teach. Outside of work, Ayush can be found skiing, watching basketball, and baking.",
     imageSrc: "/founders/ayush-bakhandi-portrait-placeholder.svg",
     imageAlt:
       "Ayush Bakhandi, co-founder of Dublin Tutoring Association (portrait placeholder)",
@@ -24,10 +24,10 @@ const FOUNDERS = [
     name: "Ayush Bandopadhyay",
     schoolLine: "DHS '22 · UC Santa Cruz '26",
     degreeLine: "B.S. Computer Science & Game Design",
-    bio: "[FOUNDER TO WRITE — 3–4 sentences]",
-    imageSrc: "/founders/ayush-bandopadhyay-portrait-placeholder.svg",
+    bio: "Since 6th grade, Ayush has been drawn to helping others learn, from tutoring kids at Green Elementary to freshmen through high school as a peer tutor and board member of the Freshman Mentor Program. He carried the same dedication to UC Santa Cruz, where he graduated on the Dean's List and worked as a teaching assistant and grader for math and engineering courses. He is now part of a game development team at UC Santa Cruz, bringing together his long-running interests in programming and game design. In his free time, Ayush reads, plays video games, swims, and enjoys manning the grill.",
+    imageSrc: "/founders/ayush-bandopadhyay-portrait.jpg",
     imageAlt:
-      "Ayush Bandopadhyay, co-founder of Dublin Tutoring Association (portrait placeholder)",
+      "Ayush Bandopadhyay, co-founder of Dublin Tutoring Association",
     initials: "AB",
   },
 ] as const;

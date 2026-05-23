@@ -8,7 +8,7 @@
 # 1) Repo Settings → Pages → Build and deployment → Source = "GitHub Actions"
 #    (not "Deploy from a branch").
 # 2) First run: approve the `dta-static-pages` environment if GitHub prompts.
-# 3) Optional Actions Variables: NEXT_PUBLIC_CALENDLY_USERNAME, NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG
+# 3) Static export has no /api routes — contact booking is email-only on Pages.
 
 name: Deploy to GitHub Pages
 
@@ -58,8 +58,6 @@ jobs:
           NEXT_PUBLIC_STATIC_EXPORT: "true"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
-          NEXT_PUBLIC_CALENDLY_USERNAME: ${{ vars.NEXT_PUBLIC_CALENDLY_USERNAME }}
-          NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG: ${{ vars.NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG }}
 
       - name: Verify static output
         run: test -f index.html && test -d _next

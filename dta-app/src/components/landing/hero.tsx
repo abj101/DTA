@@ -62,10 +62,10 @@ export function Hero() {
               </span>
             </Button>
             <Link
-              href="/#why-tutoring"
+              href="/about"
               className="text-[15px] font-medium text-dta-text-secondary underline decoration-dta-border underline-offset-[5px] transition-colors duration-dta-hover ease-dta-premium hover:text-dta-text-primary"
             >
-              <span>Why families choose us</span>
+              <span>About us</span>
               <span aria-hidden className="whitespace-nowrap">
                 {" "}
                 →
@@ -73,14 +73,14 @@ export function Hero() {
             </Link>
           </div>
 
-          <p
-            className="dta-rise mt-dta-xl font-mono text-[11px] font-medium tracking-[0.06em] text-dta-text-muted md:text-xs"
+          <div
+            className="dta-rise mt-dta-xl font-mono text-sm font-medium tracking-[0.05em] text-dta-text-primary md:text-[15px]"
             style={{ animationDelay: "450ms" }}
           >
             {
               "Tri-Valley · Grades 6–12 · STEM & English · AP · Essays · In-person & online"
             }
-          </p>
+          </div>
         </div>
       </div>
     </section>

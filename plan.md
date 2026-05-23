@@ -517,11 +517,7 @@ function formatSlot(iso: string) {
   })
 }
 
-function buildCalendlyUrl(slotIso: string) {
-  const base    = `https://calendly.com/${process.env.NEXT_PUBLIC_CALENDLY_USERNAME}/${process.env.NEXT_PUBLIC_CALENDLY_EVENT_TYPE_SLUG}`
-  const encoded = encodeURIComponent(slotIso)
-  return `${base}?date=${encoded}`
-}
+// Server: POST /api/book → Calendly POST /invitees (Scheduling API; paid plan + scheduled_events:write).
 
 export default function AppointmentPicker() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
@@ -543,9 +539,8 @@ export default function AppointmentPicker() {
     setLoading(false)
   }
 
-  function handleBook() {
-    if (!selectedSlot) return
-    window.open(buildCalendlyUrl(selectedSlot), '_blank')
+  async function handleBook() {
+    await fetch('/api/book', { method: 'POST', body: JSON.stringify({ startTime: selectedSlot, name, email }) })
   }
 
   function isDisabled(date: Date) {
@@ -652,7 +647,7 @@ AppointmentPicker → GET /api/availability?date=YYYY-MM-DD
                               ↓
                    Returns [ "2024-09-15T15:00:00Z", ... ]
                               ↓
-User picks slot → window.open(calendly.com/dtutoring/free-consultation?date=...)
+User picks slot + enters name/email → POST /api/book → Calendly POST /invitees
                               ↓
                    Calendly hosted page — user enters name/email, confirms
                               ↓
@@ -664,7 +659,7 @@ User picks slot → window.open(calendly.com/dtutoring/free-consultation?date=..
 ### Gotchas
 
 - **Timezone:** Calendly returns slots in UTC. Always convert to `America/Los_Angeles` for display. The `formatSlot` helper above handles this.
-- **Weekends:** Disable in the `Calendar` `disabled` prop — avoids a needless API round-trip.
+- **Scheduling API:** `POST /invitees` books the exact slot; token needs `scheduled_events:write`; Calendly paid plan required. Optional `CALENDLY_LOCATION_KIND` if the event type has multiple locations.
 - **API rate limits:** Calendly free tier allows 600 requests/hour. One call per date selection — not a concern.
 - **Calendly free tier:** Supports one event type. The `event_type_available_times` endpoint is available on the free plan.
 

@@ -142,6 +142,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .dta-rise {
+    opacity: 0;
     animation: dta-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
@@ -152,6 +153,15 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* Contact is a short page: keep footer tight to content instead of sticky-footer gap */
+body:has([data-contact-page]) .site-content {
+  flex: 0 1 auto;
+}
+
+body:has([data-contact-page]) footer {
+  margin-top: 0;
 }
 
 @layer base {
