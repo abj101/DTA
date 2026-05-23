@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node ./scripts/vercel-postbuild.mjs",
+    "build": "node ./scripts/vercel-prebuild.mjs && next build && node ./scripts/vercel-postbuild.mjs",
     "build:static": "cross-env STATIC_EXPORT=true NEXT_PUBLIC_STATIC_EXPORT=true next build",
     "start": "next start",
     "lint": "eslint"

@@ -11,6 +11,8 @@ The Next.js app lives in this directory. Vercel must use **`dta-app`** as the pr
 
 Redeploy after changing Root Directory.
 
+If production builds fail with `ENOENT` under `/vercel/path0/` (for example `.next/routes-manifest-deterministic.json`, `node_modules/next/dist/build/adapter/setup-node-env.external.js`, or `@swc/helpers/...`), Vercel’s Git Integration is validating the **repository root** while `npm ci` / `next build` run in `dta-app/`. Confirm **Root Directory = `dta-app`**, and keep the `vercel-prebuild` / `vercel-postbuild` scripts wired in `package.json` `build` (they mirror `node_modules` and `.next` to the repo root on Vercel only).
+
 ## What not to do
 
 - Do not add a root-level `vercel.json` with `cd dta-app && …` commands. That builds in the subdirectory but makes post-build validation look at the wrong paths on Next.js 16.

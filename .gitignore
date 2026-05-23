@@ -1,2 +1,3 @@
 # Accidental build artifacts at repository root (app lives in dta-app/)
 .next/
+node_modules/
