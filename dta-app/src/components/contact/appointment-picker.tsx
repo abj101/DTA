@@ -60,9 +60,11 @@ type BookingSuccess = {
 };
 
 export function AppointmentPicker() {
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>();
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
+    () => new Date(),
+  );
   const [slots, setSlots] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(() => !isStaticExport);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
@@ -76,58 +78,66 @@ export function AppointmentPicker() {
   );
   const requestSeqRef = React.useRef(0);
 
-  async function handleDateSelect(date: Date | undefined) {
-    if (!date) return;
-    const requestId = ++requestSeqRef.current;
-    const ymd = formatYmdInTimeZone(date, DTA_SCHEDULE_TZ);
+  const handleDateSelect = React.useCallback(
+    async (date: Date | undefined) => {
+      if (!date) return;
+      const requestId = ++requestSeqRef.current;
+      const ymd = formatYmdInTimeZone(date, DTA_SCHEDULE_TZ);
 
-    setSelectedDate(date);
-    setSelectedSlot(null);
-    setFetchError(null);
-    setBookError(null);
-    setBookStatus("idle");
-    setConfirmation(null);
-    setSlots([]);
-
-    if (isStaticExport) {
+      setSelectedDate(date);
+      setSelectedSlot(null);
       setFetchError(null);
-      return;
-    }
+      setBookError(null);
+      setBookStatus("idle");
+      setConfirmation(null);
+      setSlots([]);
 
-    setLoading(true);
-
-    try {
-      const res = await fetch(
-        withBasePath(`/api/availability?date=${encodeURIComponent(ymd)}`),
-      );
-      const data = (await res.json()) as {
-        slots?: string[];
-        error?: string;
-        detail?: string;
-      };
-
-      if (requestId !== requestSeqRef.current) return;
-
-      if (res.ok) {
-        setSlots(data.slots ?? []);
+      if (isStaticExport) {
         setFetchError(null);
+        setLoading(false);
         return;
       }
 
-      setSlots([]);
-      setFetchError(
-        data.detail ?? data.error ?? "Could not load availability.",
-      );
-    } catch {
-      if (requestId !== requestSeqRef.current) return;
-      setSlots([]);
-      setFetchError("Could not load availability.");
-    } finally {
-      if (requestId === requestSeqRef.current) {
-        setLoading(false);
+      setLoading(true);
+
+      try {
+        const res = await fetch(
+          withBasePath(`/api/availability?date=${encodeURIComponent(ymd)}`),
+        );
+        const data = (await res.json()) as {
+          slots?: string[];
+          error?: string;
+          detail?: string;
+        };
+
+        if (requestId !== requestSeqRef.current) return;
+
+        if (res.ok) {
+          setSlots(data.slots ?? []);
+          setFetchError(null);
+          return;
+        }
+
+        setSlots([]);
+        setFetchError(
+          data.detail ?? data.error ?? "Could not load availability.",
+        );
+      } catch {
+        if (requestId !== requestSeqRef.current) return;
+        setSlots([]);
+        setFetchError("Could not load availability.");
+      } finally {
+        if (requestId === requestSeqRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  }
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    void handleDateSelect(new Date());
+  }, [handleDateSelect]);
 
   async function handleBook(e: React.FormEvent) {
     e.preventDefault();

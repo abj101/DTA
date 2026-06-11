@@ -22,11 +22,10 @@ export function PricingBlock() {
                   id="pricing-block-summary"
                   className="font-heading text-[clamp(1.35rem,3.2vw,1.7rem)] font-semibold leading-[1.15] tracking-[-0.025em] text-dta-inverse-text"
                 >
-                  Starting at{" "}
-                  <span className="tabular-nums">$45</span> per session
+                  Pricing Varies for Grade Level & Subject
                 </p>
                 <p className="font-mono text-[11px] font-medium uppercase leading-[1.5] tracking-[0.08em] text-dta-inverse-muted md:text-xs">
-                  {"1-hour · 1-on-1 · In-person & Online"}
+                  {"1-hour sessions · 1-on-1 · In-person & Online"}
                 </p>
               </div>
               <Button

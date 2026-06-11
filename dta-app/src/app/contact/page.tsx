@@ -67,7 +67,7 @@ export default function ContactPage() {
           <div className="space-y-dta-sm">
             <p className={sectionLabelClassName}>What to expect</p>
             <p className="max-w-[58ch] font-heading text-[clamp(1.25rem,2.6vw,1.5rem)] font-semibold leading-[1.2] tracking-[-0.02em] text-dta-text-primary">
-              30 minutes. Free. No commitment.
+              Free 30 minute consultation. No commitment.
             </p>
           </div>
           <p className="mt-dta-md max-w-[62ch] text-[15px] leading-[1.7] text-dta-text-secondary md:text-base">
