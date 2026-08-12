@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * DISABLED — custom Calendly API booking UI.
+ * Kept for later; contact page currently uses `calendly-embed.tsx` instead.
+ * Related: `/api/availability`, `/api/book`, `lib/calendly-server.ts`.
+ */
+
 import * as React from "react";
 
 import { sectionLabelClassName } from "@/components/landing/section";

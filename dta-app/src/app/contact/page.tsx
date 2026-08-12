@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Mail, Phone } from "lucide-react";
 
-import { AppointmentPicker } from "@/components/contact/appointment-picker";
+import { CalendlyEmbed } from "@/components/contact/calendly-embed";
+// Custom API-backed picker parked at appointment-picker.custom.tsx (+ /api/availability, /api/book).
+// import { AppointmentPicker } from "@/components/contact/appointment-picker.custom";
 // import { MessageForm } from "@/components/contact/message-form";
 import { LandingSection, sectionLabelClassName } from "@/components/landing/section";
 import {
@@ -36,9 +38,9 @@ export default function ContactPage() {
         compact
         tone="base"
         id="book"
-        className="[&>div]:pt-[clamp(2.25rem,6vw,3.75rem)] [&>div]:!pb-dta-lg"
+        className="[&>div]:pt-[clamp(1.25rem,3vw,2rem)] [&>div]:!pb-dta-lg"
       >
-        <div className="space-y-dta-sm">
+        <div className="space-y-1">
           <h2
             className={`${sectionLabelClassName} dta-rise`}
             style={{ animationDelay: "0ms" }}
@@ -46,7 +48,7 @@ export default function ContactPage() {
             Book Free Consultation
           </h2>
           <h3
-            className="dta-rise max-w-[65ch] text-[clamp(1.5rem,4vw,2rem)] font-semibold tracking-[-0.03em] text-dta-text-primary"
+            className="dta-rise max-w-[65ch] text-[clamp(1.35rem,3vw,1.75rem)] font-semibold tracking-[-0.03em] text-dta-text-primary"
             style={{ animationDelay: "110ms" }}
           >
             Let&apos;s build a plan for your student
@@ -54,10 +56,10 @@ export default function ContactPage() {
         </div>
 
         <div
-          className="dta-rise mt-dta-xl border-t border-dta-border pt-dta-lg"
+          className="dta-rise mt-dta-md"
           style={{ animationDelay: "230ms" }}
         >
-          <AppointmentPicker />
+          <CalendlyEmbed />
         </div>
 
         <div
