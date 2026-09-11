@@ -48,6 +48,9 @@ export function SiteFooter() {
                     <Link href="/about" className={FOOTER_NAV_LINK_CLASS}>
                       About
                     </Link>
+                    <Link href="/office-hours" className={FOOTER_NAV_LINK_CLASS}>
+                      Hours
+                    </Link>
                     <Link href="/contact" className={FOOTER_NAV_LINK_CLASS}>
                       Contact
                     </Link>

@@ -155,12 +155,12 @@
   }
 }
 
-/* Contact is a short page: keep footer tight to content instead of sticky-footer gap */
-body:has([data-contact-page]) .site-content {
+/* Short pages: keep footer tight to content instead of sticky-footer gap */
+body:has([data-contact-page], [data-office-hours-page]) .site-content {
   flex: 0 1 auto;
 }
 
-body:has([data-contact-page]) footer {
+body:has([data-contact-page], [data-office-hours-page]) footer {
   margin-top: 0;
 }
 
