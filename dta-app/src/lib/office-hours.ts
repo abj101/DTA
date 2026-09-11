@@ -11,6 +11,10 @@ import { isStaticExport } from "@/lib/static-export";
 export const OFFICE_HOURS_WINDOW_DAYS = 21;
 export const LOCATION_TBA = "Location TBA";
 
+/** Public Google Calendar iCal. Override with OFFICE_HOURS_ICS_URL if the feed moves. */
+export const DEFAULT_OFFICE_HOURS_ICS_URL =
+  "https://calendar.google.com/calendar/ical/b5273f9eaf0272b27ea58ad9c27a60daffbaa417742ac9605724f4170bbf2bde%40group.calendar.google.com/public/basic.ics";
+
 export const OFFICE_HOURS_TUTORS = [
   {
     name: "Ayush Bakhandi",
@@ -319,21 +323,25 @@ export async function getOfficeHours(
     return { status: "static" };
   }
 
-  const url = process.env.OFFICE_HOURS_ICS_URL?.trim();
-  if (!url) {
-    return { status: "error" };
-  }
+  const url =
+    process.env.OFFICE_HOURS_ICS_URL?.trim() || DEFAULT_OFFICE_HOURS_ICS_URL;
 
   try {
     const res = await fetch(url, {
       cache: "no-store",
+      headers: {
+        Accept: "text/calendar, text/plain, */*",
+        "User-Agent": "DublinTutoringAssociation/1.0",
+      },
     });
     if (!res.ok) {
+      console.error("office-hours: ICS HTTP", res.status);
       return { status: "error" };
     }
 
     const ics = await res.text();
     if (!ics.includes("BEGIN:VCALENDAR")) {
+      console.error("office-hours: ICS body missing VCALENDAR");
       return { status: "error" };
     }
 
@@ -354,7 +362,8 @@ export async function getOfficeHours(
     }
 
     return { status: "ok", thisWeek, nextWeek };
-  } catch {
+  } catch (error) {
+    console.error("office-hours: ICS fetch failed", error);
     return { status: "error" };
   }
 }
