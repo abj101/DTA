@@ -14,6 +14,9 @@ export const SESSION_PROPS = {
   tutors: "Primary Tutor",
   students: "Student",
   meetingType: "Meeting Type",
+  status: "Status",
+  /** Number property on each related Student Database page. */
+  studentRate: "Session Rate",
   /** Rendered into the event description, in this order, when non-empty. */
   extra: ["Subject", "Meeting Type", "Topics", "Status"],
 } as const;
@@ -29,8 +32,12 @@ export type Session = {
   timeZone: string | null;
   tutors: string[];
   students: string[];
+  /** Session Rate of each student, parallel to `students`. */
+  studentRates: (number | null)[];
+  meetingType: string | null;
   /** Notion option color of the Meeting Type select (e.g. "green"), if set. */
   meetingTypeColor: string | null;
+  status: string | null;
   details: { label: string; value: string }[];
 };
 
@@ -105,20 +112,29 @@ function plainText(prop: Property | undefined): string {
   }
 }
 
-async function pageTitle(pageId: string, cache: Map<string, string>): Promise<string> {
-  const cached = cache.get(pageId);
-  if (cached !== undefined) return cached;
-  const page = await notion().pages.retrieve({ page_id: pageId });
-  const title = isFullPage(page)
-    ? plainText(Object.values(page.properties).find((p) => p.type === "title"))
-    : "";
-  cache.set(pageId, title);
-  return title;
+type Student = { name: string; rate: number | null };
+
+function studentInfo(pageId: string, cache: Map<string, Promise<Student>>): Promise<Student> {
+  let student = cache.get(pageId);
+  if (!student) {
+    student = notion()
+      .pages.retrieve({ page_id: pageId })
+      .then((page) => {
+        if (!isFullPage(page)) return { name: "", rate: null };
+        const rate = page.properties[SESSION_PROPS.studentRate];
+        return {
+          name: plainText(Object.values(page.properties).find((p) => p.type === "title")),
+          rate: rate?.type === "number" ? rate.number : null,
+        };
+      });
+    cache.set(pageId, student);
+  }
+  return student;
 }
 
 export async function toSession(
   page: PageObjectResponse,
-  studentCache: Map<string, string> = new Map(),
+  studentCache: Map<string, Promise<Student>> = new Map(),
 ): Promise<Session> {
   const props = page.properties;
   const date = props[SESSION_PROPS.date];
@@ -126,12 +142,11 @@ export async function toSession(
   const students = props[SESSION_PROPS.students];
   const meetingType = props[SESSION_PROPS.meetingType];
 
-  const studentNames =
+  const studentList = (
     students?.type === "relation"
-      ? (
-          await Promise.all(students.relation.map((r) => pageTitle(r.id, studentCache)))
-        ).filter(Boolean)
-      : [];
+      ? await Promise.all(students.relation.map((r) => studentInfo(r.id, studentCache)))
+      : []
+  ).filter((s) => s.name);
 
   return {
     pageId: page.id,
@@ -147,8 +162,11 @@ export async function toSession(
         : tutors?.type === "select" && tutors.select
           ? [tutors.select.name]
           : [],
-    students: studentNames,
+    students: studentList.map((s) => s.name),
+    studentRates: studentList.map((s) => s.rate),
+    meetingType: meetingType?.type === "select" ? (meetingType.select?.name ?? null) : null,
     meetingTypeColor: meetingType?.type === "select" ? (meetingType.select?.color ?? null) : null,
+    status: plainText(props[SESSION_PROPS.status]) || null,
     details: SESSION_PROPS.extra
       .map((label) => ({ label, value: plainText(props[label]) }))
       .filter((d) => d.value),
@@ -168,14 +186,25 @@ export async function getSessionPage(pageId: string): Promise<PageObjectResponse
   }
 }
 
-/** All non-trashed sessions whose date is on or after `since`. */
-export async function querySessions(since: Date): Promise<Session[]> {
+/** All non-trashed sessions whose date is on or after `since` (and before `before`, if set). */
+export async function querySessions(since: Date, before?: Date): Promise<Session[]> {
   const data_source_id = await sessionsDataSourceId();
-  const studentCache = new Map<string, string>();
+  const studentCache = new Map<string, Promise<Student>>();
   const sessions: Session[] = [];
+  const onOrAfter = {
+    property: SESSION_PROPS.date,
+    date: { on_or_after: since.toISOString() },
+  };
   for await (const page of iteratePaginatedAPI(notion().dataSources.query, {
     data_source_id,
-    filter: { property: SESSION_PROPS.date, date: { on_or_after: since.toISOString() } },
+    filter: before
+      ? {
+          and: [
+            onOrAfter,
+            { property: SESSION_PROPS.date, date: { before: before.toISOString() } },
+          ],
+        }
+      : onOrAfter,
   })) {
     if (isFullPage(page)) sessions.push(await toSession(page, studentCache));
   }

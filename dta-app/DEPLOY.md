@@ -25,6 +25,13 @@ Sessions in the Notion **Session Calendar** are copied into each primary tutor's
 
 Sessions without a date or primary tutor (e.g. office hours) are skipped. A session tagged with both tutors appears on both calendars.
 
+### Accounting sheet
+
+The same webhook and cron also rewrite the **Session Tracker** Google Sheet (`src/lib/accounting-sheet.ts`). Every Notion session with Meeting Type **Session** becomes a row (Date, Student, Tutor, Status, Amount) in its month's tab (`SEP 26`, `OCT 26`, …); missing month tabs are copied from the `Template` tab. Status is copied from Notion (Settled / Outstanding / N/A), Amount is the student's **Session Rate** from the Student Database ($0 when Status is N/A), and each Student cell links to its Notion page. Rows are shaded by tutor and the Status cell by status (`TUTOR_ROW_COLORS` / `STATUS_COLORS`; add a new tutor there). The sync owns the Session Tracking table rows, its size, and the tab's conditional formatting, so edit sessions in Notion, not in the sheet.
+
+1. Enable the **Google Sheets API** in the same Google Cloud project as the service account.
+2. Share the spreadsheet with the service account email as **Editor**, and set `GOOGLE_SHEETS_ACCOUNTING_ID` to the ID from its URL (`/spreadsheets/d/<ID>/edit`).
+
 ## What not to do
 
 - Do not add a root-level `vercel.json` with `cd dta-app && …` commands. That builds in the subdirectory but makes post-build validation look at the wrong paths on Next.js 16.

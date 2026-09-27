@@ -1,3 +1,4 @@
+import { syncAllSessionSheets, syncSessionSheet } from "@/lib/accounting-sheet";
 import { deleteEvent, listNotionEvents, upsertEvent, type CalendarEvent } from "@/lib/gcal";
 import {
   getSessionPage,
@@ -149,26 +150,50 @@ async function applySession(
   return { pageId: session.pageId, title: session.title, action: "skipped", reason };
 }
 
-/** Sync a single Notion page (webhook path). */
-export async function syncSession(pageId: string): Promise<SyncResult> {
+async function syncCalendars(pageId: string, session: Session | null): Promise<SyncResult> {
   const calendars = tutorCalendars();
-  const page = await getSessionPage(pageId);
-
-  if (!page) {
+  if (!session) {
     const eventId = eventIdFor(pageId);
     await Promise.all(calendars.map((c) => deleteEvent(c.calendarId, eventId)));
     return { pageId, action: "deleted", reason: "page not found" };
   }
-  if (!(await isSessionPage(page))) {
+  return applySession(session, calendars);
+}
+
+/** Lets both syncs finish even if one fails, then rethrows the first failure. */
+async function both<A, B>(a: Promise<A>, b: Promise<B>): Promise<[A, B]> {
+  const [ra, rb] = await Promise.allSettled([a, b]);
+  if (ra.status === "rejected") throw ra.reason;
+  if (rb.status === "rejected") throw rb.reason;
+  return [ra.value, rb.value];
+}
+
+/** Sync a single Notion page (webhook path). */
+export async function syncSession(pageId: string): Promise<SyncResult & { sheets?: string[] }> {
+  const page = await getSessionPage(pageId);
+  if (page && !(await isSessionPage(page))) {
     return { pageId, action: "skipped", reason: "not in Session Calendar" };
   }
-  return applySession(await toSession(page), calendars);
+  const session = page ? await toSession(page) : null;
+  const [calendar, sheets] = await both(
+    syncCalendars(pageId, session),
+    syncSessionSheet(pageId, session),
+  );
+  return { ...calendar, sheets };
 }
 
 /** Reconcile every recent session, then delete Notion-tagged events with no matching page. */
 export async function syncAllSessions() {
-  const calendars = tutorCalendars();
   const since = new Date(Date.now() - RESYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const [calendars, sheets] = await both(
+    syncAllCalendars(since),
+    syncAllSessionSheets(since),
+  );
+  return { ...calendars, sheets };
+}
+
+async function syncAllCalendars(since: Date) {
+  const calendars = tutorCalendars();
 
   const [sessions, ...eventIds] = await Promise.all([
     querySessions(since),
