@@ -46,6 +46,8 @@ export type SignupSlotsResponse =
     }
   | { ok: false; error: string };
 
+export type SignupSlotsView = Extract<SignupSlotsResponse, { ok: true }>;
+
 export type SignupValidateResponse =
   | { ok: true; status: SignupNameStatus }
   | { ok: false; error: string };

@@ -21,6 +21,7 @@ import {
   type OfficeHoursSession,
   type OfficeHoursTutor,
 } from "@/lib/office-hours";
+import { buildSlotsView, signupsConfigured } from "@/lib/office-hours-signups";
 
 const CONTACT_LINK_CLASS =
   "inline-flex items-center py-1 text-[15px] leading-normal text-dta-text-secondary underline decoration-dta-border underline-offset-[5px] transition-colors duration-dta-hover ease-dta-premium hover:text-dta-text-primary md:text-base";
@@ -221,7 +222,11 @@ function NextUp({
       kicker={kicker}
       tutors={session.tutors}
       tutorsHeadingId="office-hours-available-tutors"
-      tutorsAction={<OfficeHoursSignup />}
+      tutorsAction={
+        session.tutors.length > 0 && signupsConfigured() ? (
+          <OfficeHoursSignup initial={buildSlotsView(session, new Set())} />
+        ) : undefined
+      }
       labelledBy="office-hours-next-when"
       happeningNow={session.happeningNow}
     >

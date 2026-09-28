@@ -6,11 +6,15 @@ import { unstable_cache } from "next/cache";
 import { insertEventOnce, listEventsByPrivateProps } from "@/lib/gcal";
 import { notion, plainText, resolveDataSourceId } from "@/lib/notion-sessions";
 import {
+  DROP_IN_MINUTES,
   formatClock,
   formatOfficeDate,
+  formatOfficeTimeRange,
+  officeHoursSlots,
   type OfficeHoursSession,
   type OfficeHoursSlot,
 } from "@/lib/office-hours";
+import type { SignupSlotsView } from "@/lib/office-hours-signup-schema";
 import { DTA_SCHEDULE_TZ } from "@/lib/pacific-date";
 
 /** Student Database property that marks who may book office hours. */
@@ -123,6 +127,37 @@ export function formatSlotRange(start: Date, end: Date): string {
     return { clock: `${part("hour")}:${part("minute")}`, period: part("dayPeriod") };
   });
   return `${s.clock} – ${e.clock} ${e.period}`;
+}
+
+/** Dialog layout for a session; `taken` marks booked slots (past slots are always taken). */
+export function buildSlotsView(
+  session: OfficeHoursSession,
+  taken: ReadonlySet<string>,
+  now = new Date(),
+): SignupSlotsView {
+  const start = new Date(session.start);
+  const end = new Date(session.end);
+  const dropInStart = new Date(end.getTime() - DROP_IN_MINUTES * 60 * 1000);
+  return {
+    ok: true,
+    session: {
+      date: formatOfficeDate(start),
+      time: formatOfficeTimeRange(start, end),
+    },
+    dropInLabel: formatSlotRange(dropInStart, end),
+    tutors: session.tutors.map(({ name, imageSrc, initials }) => ({
+      name,
+      imageSrc,
+      initials,
+    })),
+    slots: officeHoursSlots(session, now).map((slot) => ({
+      id: slot.id,
+      tutorName: slot.tutorName,
+      start: slot.start,
+      label: formatSlotRange(new Date(slot.start), new Date(slot.end)),
+      taken: slot.past || taken.has(slot.id),
+    })),
+  };
 }
 
 export async function listTakenSlotIds(session: OfficeHoursSession): Promise<Set<string>> {

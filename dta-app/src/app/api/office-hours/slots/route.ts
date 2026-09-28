@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
 
-import {
-  DROP_IN_MINUTES,
-  formatOfficeDate,
-  formatOfficeTimeRange,
-  getOfficeHours,
-  mainSession,
-  officeHoursSlots,
-} from "@/lib/office-hours";
+import { getOfficeHours, mainSession } from "@/lib/office-hours";
 import type { SignupSlotsResponse } from "@/lib/office-hours-signup-schema";
 import {
-  formatSlotRange,
+  buildSlotsView,
   listTakenSlotIds,
   signupsConfigured,
 } from "@/lib/office-hours-signups";
@@ -42,27 +35,5 @@ export async function GET() {
     );
   }
 
-  const start = new Date(session.start);
-  const end = new Date(session.end);
-  const dropInStart = new Date(end.getTime() - DROP_IN_MINUTES * 60 * 1000);
-  return NextResponse.json<SignupSlotsResponse>({
-    ok: true,
-    session: {
-      date: formatOfficeDate(start),
-      time: formatOfficeTimeRange(start, end),
-    },
-    dropInLabel: formatSlotRange(dropInStart, end),
-    tutors: session.tutors.map(({ name, imageSrc, initials }) => ({
-      name,
-      imageSrc,
-      initials,
-    })),
-    slots: officeHoursSlots(session).map((slot) => ({
-      id: slot.id,
-      tutorName: slot.tutorName,
-      start: slot.start,
-      label: formatSlotRange(new Date(slot.start), new Date(slot.end)),
-      taken: slot.past || taken.has(slot.id),
-    })),
-  });
+  return NextResponse.json<SignupSlotsResponse>(buildSlotsView(session, taken));
 }

@@ -26,6 +26,7 @@ import { downloadIcs } from "@/lib/ics-invite";
 import type {
   SignupResponse,
   SignupSlotsResponse,
+  SignupSlotsView,
   SignupValidateResponse,
 } from "@/lib/office-hours-signup-schema";
 import { cn } from "@/lib/utils";
@@ -74,10 +75,10 @@ const ROW_HEADER_CLASS =
 const FIELD_CLASS =
   "rounded-dta-md border-dta-border bg-transparent text-base text-dta-text-primary md:text-sm";
 
+/** `data` always holds the layout so the dialog never resizes while availability loads. */
 type SlotsState =
-  | { status: "loading" }
-  | { status: "error"; error: string }
-  | { status: "ready"; data: Extract<SignupSlotsResponse, { ok: true }> };
+  | { status: "loading" | "ready"; data: SignupSlotsView }
+  | { status: "error"; error: string; data: SignupSlotsView };
 
 type NameStatus =
   | "idle"
@@ -141,9 +142,12 @@ function useLastNonNull<T>(value: T | null): T | null {
   return value ?? last;
 }
 
-export function OfficeHoursSignup() {
+export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
   const [open, setOpen] = React.useState(false);
-  const [slots, setSlots] = React.useState<SlotsState>({ status: "loading" });
+  const [slots, setSlots] = React.useState<SlotsState>({
+    status: "loading",
+    data: initial,
+  });
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
   const [notes, setNotes] = React.useState("");
@@ -167,12 +171,17 @@ export function OfficeHoursSignup() {
         );
         return;
       }
-      setSlots({
+      setSlots(({ data }) => ({
         status: "error",
         error: payload?.error ?? "Could not load open slots. Try again in a moment.",
-      });
+        data,
+      }));
     } catch {
-      setSlots({ status: "error", error: "Network error. Try again in a moment." });
+      setSlots(({ data }) => ({
+        status: "error",
+        error: "Network error. Try again in a moment.",
+        data,
+      }));
     }
   }
 
@@ -210,7 +219,7 @@ export function OfficeHoursSignup() {
   }
 
   function reset() {
-    setSlots({ status: "loading" });
+    setSlots(({ data }) => ({ status: "loading", data }));
     setSelectedId(null);
     setName("");
     setNotes("");
@@ -245,7 +254,7 @@ export function OfficeHoursSignup() {
       if (payload?.ok) {
         setBooked({
           ...payload,
-          date: slots.status === "ready" ? slots.data.session.date : "",
+          date: slots.data.session.date,
         });
         return;
       }
@@ -308,14 +317,14 @@ export function OfficeHoursSignup() {
         Sign up
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 transition-opacity duration-dta-section ease-dta-premium data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-xs sm:duration-dta-card" />
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-dta-lg">
           <Dialog.Popup
             className={cn(
-              "relative max-h-[92dvh] w-full overflow-y-auto rounded-t-dta-xl bg-dta-base p-dta-lg text-dta-text-primary shadow-lg outline-none sm:max-w-[37rem] sm:rounded-dta-xl",
-              "transition-[opacity,translate,scale] duration-dta-card ease-dta-premium motion-reduce:transition-none",
-              "data-starting-style:translate-y-10 data-starting-style:opacity-0 data-ending-style:translate-y-10 data-ending-style:opacity-0",
-              "sm:data-starting-style:translate-y-0 sm:data-starting-style:scale-[0.98] sm:data-ending-style:translate-y-0 sm:data-ending-style:scale-[0.98]",
+              "relative max-h-[92dvh] w-full overflow-y-auto rounded-t-dta-xl bg-dta-base p-dta-md text-dta-text-primary sm:p-dta-lg shadow-lg outline-none sm:max-w-[37rem] sm:rounded-dta-xl",
+              "transition-[opacity,translate,scale] duration-dta-section ease-dta-premium motion-reduce:transition-none sm:duration-dta-card",
+              "data-starting-style:translate-y-full data-ending-style:translate-y-full",
+              "sm:data-starting-style:translate-y-2 sm:data-starting-style:scale-[0.98] sm:data-starting-style:opacity-0 sm:data-ending-style:translate-y-2 sm:data-ending-style:scale-[0.98] sm:data-ending-style:opacity-0",
             )}
           >
             <Dialog.Close
@@ -323,7 +332,7 @@ export function OfficeHoursSignup() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="absolute top-4 right-4 z-10 size-8 rounded-full text-dta-text-secondary hover:bg-[var(--dta-bg-soft)] hover:text-dta-text-primary active:bg-[var(--dta-border-subtle)]"
+                  className="absolute top-2 right-2 z-10 size-8 sm:top-4 sm:right-4 rounded-full text-dta-text-secondary hover:bg-[var(--dta-bg-soft)] hover:text-dta-text-primary active:bg-[var(--dta-border-subtle)]"
                 />
               }
             >
@@ -340,15 +349,13 @@ export function OfficeHoursSignup() {
                     "pointer-events-none absolute inset-0 scale-[0.99] overflow-hidden opacity-0 motion-reduce:scale-100",
                 )}
               >
-                <p className={sectionLabelClassName}>Office hours signup</p>
-                <Dialog.Title className="mt-dta-sm pr-10 font-heading text-[clamp(1.25rem,2.6vw,1.5rem)] font-semibold leading-[1.2] tracking-[-0.02em] text-dta-text-primary">
-                  {slots.status === "ready" ? slots.data.session.date : "Pick a time"}
+                <p className={cn(sectionLabelClassName, "leading-4")}>Office hours signup</p>
+                <Dialog.Title className="mt-dta-sm pr-10 font-heading text-[clamp(1.25rem,2.6vw,1.5rem)] font-semibold leading-6 tracking-[-0.02em] text-dta-text-primary sm:leading-7">
+                  {slots.data.session.date}
                 </Dialog.Title>
-                {slots.status === "ready" ? (
-                  <Dialog.Description className="mt-dta-xs text-[15px] text-dta-text-secondary">
-                    {slots.data.session.time}
-                  </Dialog.Description>
-                ) : null}
+                <Dialog.Description className="mt-dta-xs text-[15px] leading-[22px] text-dta-text-secondary">
+                  {slots.data.session.time}
+                </Dialog.Description>
 
                 <SlotTable
                   state={slots}
@@ -534,6 +541,22 @@ function RangeLabel({ label }: { label: string }) {
   );
 }
 
+/** First and last name stack on mobile so both tutor columns line up. */
+function TutorName({ name }: { name: string }) {
+  const [first, ...rest] = name.split(" ");
+  return (
+    <span className="min-w-0 break-words text-sm font-semibold leading-5 tracking-[-0.01em] text-dta-text-primary sm:text-[15px]">
+      <span className="block sm:inline">{first}</span>
+      {rest.length ? (
+        <>
+          {" "}
+          <span className="block sm:inline">{rest.join(" ")}</span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function SlotTable({
   state,
   selectedId,
@@ -543,19 +566,6 @@ function SlotTable({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  if (state.status === "loading") {
-    return (
-      <div className="mt-dta-lg grid grid-cols-[auto_1fr_1fr] items-center gap-dta-sm" aria-hidden>
-        {Array.from({ length: 15 }).map((_, i) => (
-          <Skeleton
-            key={i}
-            className={cn("h-10 rounded-pill", i % 3 === 0 ? "w-16" : "w-full")}
-          />
-        ))}
-      </div>
-    );
-  }
-
   if (state.status === "error") {
     return (
       <p className="mt-dta-lg text-sm text-destructive" role="alert">
@@ -566,27 +576,26 @@ function SlotTable({
 
   const { tutors, slots, dropInLabel } = state.data;
   const rows = [...new Set(slots.map((slot) => slot.start))].sort();
+  const loading = state.status === "loading";
 
   return (
-    <div role="radiogroup" aria-label="Time slots" className="mt-dta-lg">
+    <div role="radiogroup" aria-label="Time slots" aria-busy={loading} className="mt-dta-lg">
       <table className="-mx-2 w-[calc(100%+1rem)] table-fixed border-separate border-spacing-2">
         <thead>
           <tr>
-            <th scope="col" className="w-[5.25rem] p-0 sm:w-[8.5rem]">
+            <th scope="col" className="w-16 p-0 sm:w-[8.5rem]">
               <span className="sr-only">Time</span>
             </th>
             {tutors.map((tutor) => (
               <th key={tutor.name} scope="col" className="p-0 pb-dta-xs text-left align-bottom">
-                <span className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
-                  <Avatar className="size-6 shrink-0 border-0 bg-transparent shadow-none after:border-dta-border">
+                <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                  <Avatar className="size-8 shrink-0 border-0 bg-transparent shadow-none after:border-dta-border sm:size-6">
                     <AvatarImage src={tutor.imageSrc} alt="" width={48} height={48} />
                     <AvatarFallback className="bg-dta-elevated text-[9px] font-semibold text-dta-text-secondary">
                       {tutor.initials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="min-w-0 break-words text-sm font-semibold leading-snug tracking-[-0.01em] text-dta-text-primary sm:text-[15px]">
-                    {tutor.name}
-                  </span>
+                  <TutorName name={tutor.name} />
                 </span>
               </th>
             ))}
@@ -604,6 +613,13 @@ function SlotTable({
                 {tutors.map((tutor) => {
                   const slot = rowSlots.find((s) => s.tutorName === tutor.name);
                   if (!slot) return <td key={tutor.name} className="p-0" />;
+                  if (loading && !slot.taken) {
+                    return (
+                      <td key={tutor.name} className="p-0">
+                        <Skeleton className="h-10 w-full rounded-pill" />
+                      </td>
+                    );
+                  }
                   const selected = slot.id === selectedId;
                   const state = slot.taken ? "taken" : selected ? "selected" : "open";
                   return (
