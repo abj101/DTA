@@ -45,7 +45,7 @@ type Property = PageObjectResponse["properties"][string];
 
 let client: Client | null = null;
 
-function notion(): Client {
+export function notion(): Client {
   const auth = process.env.NOTION_API_KEY?.trim();
   if (!auth) throw new Error("NOTION_API_KEY is not set");
   client ??= new Client({ auth });
@@ -56,15 +56,9 @@ function normalizeId(id: string): string {
   return id.replace(/-/g, "").toLowerCase();
 }
 
-let dataSourceId: Promise<string> | null = null;
-
 /** Accepts either the database ID (from the Notion URL) or its data source ID. */
-export function sessionsDataSourceId(): Promise<string> {
-  const configured = process.env.NOTION_SESSIONS_DATA_SOURCE_ID?.trim();
-  if (!configured) {
-    return Promise.reject(new Error("NOTION_SESSIONS_DATA_SOURCE_ID is not set"));
-  }
-  dataSourceId ??= notion()
+export function resolveDataSourceId(configured: string): Promise<string> {
+  return notion()
     .dataSources.retrieve({ data_source_id: configured })
     .then(() => configured)
     .catch(() =>
@@ -72,6 +66,16 @@ export function sessionsDataSourceId(): Promise<string> {
         .databases.retrieve({ database_id: configured })
         .then((db) => ("data_sources" in db && db.data_sources[0]?.id) || configured),
     );
+}
+
+let dataSourceId: Promise<string> | null = null;
+
+export function sessionsDataSourceId(): Promise<string> {
+  const configured = process.env.NOTION_SESSIONS_DATA_SOURCE_ID?.trim();
+  if (!configured) {
+    return Promise.reject(new Error("NOTION_SESSIONS_DATA_SOURCE_ID is not set"));
+  }
+  dataSourceId ??= resolveDataSourceId(configured);
   return dataSourceId;
 }
 
@@ -84,7 +88,7 @@ export async function isSessionPage(page: PageObjectResponse): Promise<boolean> 
   );
 }
 
-function plainText(prop: Property | undefined): string {
+export function plainText(prop: Property | undefined): string {
   if (!prop) return "";
   switch (prop.type) {
     case "title":

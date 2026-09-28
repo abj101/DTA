@@ -26,7 +26,7 @@ const BOOKING_BUTTON_MOTION =
 const BOOKING_CTA_CLASS = cn(
   "w-full rounded-pill px-[22px] py-6 text-base font-semibold sm:h-12 sm:w-fit",
   BOOKING_BUTTON_MOTION,
-  "hover:bg-primary/90 active:bg-primary/95",
+  "hover:bg-dta-inverse-hover active:bg-dta-inverse-active",
 );
 
 const BOOKING_OUTLINE_BUTTON_CLASS = cn(
@@ -308,7 +308,7 @@ export function AppointmentPicker() {
                   "rounded-pill font-semibold sm:h-11",
                   BOOKING_BUTTON_MOTION,
                   selectedSlot === slot
-                    ? "shadow-[0_0_40px_rgba(110,168,255,0.08)] hover:bg-primary/90 active:bg-primary/95"
+                    ? "shadow-[0_0_40px_rgba(110,168,255,0.08)] hover:bg-dta-inverse-hover active:bg-dta-inverse-active"
                     : "hover:border-dta-text-muted hover:bg-dta-surface hover:text-dta-text-primary active:bg-dta-raised",
                 )}
                 onClick={() => {

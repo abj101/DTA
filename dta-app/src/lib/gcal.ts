@@ -50,23 +50,55 @@ export async function deleteEvent(calendarId: string, eventId: string) {
   }
 }
 
-/** Event IDs of Notion-sourced events on `calendarId` that end on or after `since`. */
-export async function listNotionEvents(calendarId: string, since: Date): Promise<string[]> {
-  const ids: string[] = [];
+/**
+ * Insert-only: never overwrites a live event. A previously deleted event with the same ID
+ * is revived so deleting a booking in Google Calendar frees its ID.
+ */
+export async function insertEventOnce(
+  calendarId: string,
+  eventId: string,
+  event: CalendarEvent,
+): Promise<"created" | "exists"> {
+  const requestBody = { ...event, id: eventId, status: "confirmed" };
+  try {
+    await gcal().events.insert({ calendarId, requestBody });
+    return "created";
+  } catch (error) {
+    if (status(error) !== 409) throw error;
+  }
+  const { data: existing } = await gcal().events.get({ calendarId, eventId });
+  if (existing.status !== "cancelled") return "exists";
+  await gcal().events.update({ calendarId, eventId, requestBody });
+  return "created";
+}
+
+/** Non-cancelled events tagged with every `key=value` private extended property, ending after `timeMin`. */
+export async function listEventsByPrivateProps(
+  calendarId: string,
+  props: Record<string, string>,
+  timeMin: Date,
+  timeMax?: Date,
+): Promise<CalendarEvent[]> {
+  const events: CalendarEvent[] = [];
   let pageToken: string | undefined;
   do {
     const { data } = await gcal().events.list({
       calendarId,
-      privateExtendedProperty: ["source=notion"],
-      timeMin: since.toISOString(),
+      privateExtendedProperty: Object.entries(props).map(([k, v]) => `${k}=${v}`),
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax?.toISOString(),
       singleEvents: true,
       maxResults: 2500,
       pageToken,
     });
-    for (const event of data.items ?? []) {
-      if (event.id) ids.push(event.id);
-    }
+    events.push(...(data.items ?? []));
     pageToken = data.nextPageToken ?? undefined;
   } while (pageToken);
-  return ids;
+  return events;
+}
+
+/** Event IDs of Notion-sourced events on `calendarId` that end on or after `since`. */
+export async function listNotionEvents(calendarId: string, since: Date): Promise<string[]> {
+  const events = await listEventsByPrivateProps(calendarId, { source: "notion" }, since);
+  return events.flatMap((event) => (event.id ? [event.id] : []));
 }

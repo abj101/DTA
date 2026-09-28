@@ -23,9 +23,11 @@
   --dta-nav-link: #5f6368;
   --dta-nav-link-active: #000000;
   --dta-nav-cta-bg: #1c1e21;
-  --dta-nav-cta-bg-hover: #2a2d31;
+  --dta-nav-cta-bg-hover: #3a3d42;
 
   --dta-inverse-bg: #141312;
+  --dta-inverse-bg-hover: #3a3834;
+  --dta-inverse-bg-active: #2a2825;
   --dta-inverse-bg-accent: #1a1a1a;
   --dta-inverse-text: #ffffff;
   --dta-inverse-muted: #888888;

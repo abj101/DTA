@@ -93,6 +93,7 @@ type TimedOccurrence = {
   start: Date;
   end: Date;
   status: string;
+  classification: string;
 };
 
 function icalText(event: IcalEventLike, name: string): string {
@@ -103,6 +104,10 @@ function icalText(event: IcalEventLike, name: string): string {
 function eventStatus(event: IcalEventLike): string {
   const value = icalText(event, "status");
   return value ? value.toUpperCase() : "CONFIRMED";
+}
+
+function eventClass(event: IcalEventLike): string {
+  return icalText(event, "class").toUpperCase();
 }
 
 function recurrenceKeyFrom(date: Date): string {
@@ -122,6 +127,7 @@ function fromEvent(event: IcalEventLike & { uid?: string; recurrenceId?: IcalDat
     start,
     end: event.endDate.toJSDate(),
     status: eventStatus(event),
+    classification: eventClass(event),
   };
 }
 
@@ -138,6 +144,7 @@ function fromOccurrence(occurrence: IcalOccurrenceLike & { recurrenceId?: IcalDa
     start,
     end: occurrence.endDate.toJSDate(),
     status: eventStatus(occurrence.item),
+    classification: eventClass(occurrence.item),
   };
 }
 
@@ -179,7 +186,7 @@ export function mapsSearchHref(query: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-function formatClock(date: Date): string {
+export function formatClock(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: DTA_SCHEDULE_TZ,
     hour: "numeric",
@@ -272,6 +279,14 @@ function toSession(item: TimedOccurrence, now: Date): OfficeHoursSession {
   };
 }
 
+/** Website signups are private events; the public feed shows them as bare "Busy" blocks. */
+function isSignupEvent(item: TimedOccurrence): boolean {
+  if (item.classification === "PRIVATE" || item.classification === "CONFIDENTIAL") {
+    return true;
+  }
+  return item.title.toLowerCase() === "busy" && !item.description.trim();
+}
+
 function mergeOccurrences(items: TimedOccurrence[]): TimedOccurrence[] {
   const byKey = new Map<string, TimedOccurrence>();
   for (const item of items) {
@@ -309,11 +324,64 @@ function collectOccurrences(
 
   return merged.filter((item) => {
     if (item.status === "CANCELLED") return false;
+    if (isSignupEvent(item)) return false;
     if (!(item.end instanceof Date) || Number.isNaN(item.end.getTime())) {
       return false;
     }
     return item.end.getTime() > now.getTime() && item.start.getTime() <= windowEnd.getTime();
   });
+}
+
+export const SIGNUP_SLOT_MINUTES = 30;
+export const SIGNUP_SLOTS_PER_TUTOR = 3;
+/** Final stretch of each session is drop-in only. */
+export const DROP_IN_MINUTES = 30;
+
+export type OfficeHoursSlot = {
+  id: string;
+  tutorName: string;
+  start: string;
+  end: string;
+  past: boolean;
+};
+
+/** The session the page features (and the only one open for signups). */
+export function mainSession(
+  data: OfficeHoursResult,
+): OfficeHoursSession | null {
+  if (data.status !== "ok") return null;
+  return data.thisWeek ?? data.nextWeek;
+}
+
+export function slotId(tutorName: string, start: Date): string {
+  return `${start.toISOString()}|${tutorName}`;
+}
+
+/** Bookable 30-minute slots per tutor from the session start, stopping before the drop-in window. */
+export function officeHoursSlots(
+  session: OfficeHoursSession,
+  now = new Date(),
+): OfficeHoursSlot[] {
+  const sessionStart = new Date(session.start).getTime();
+  const bookableEnd =
+    new Date(session.end).getTime() - DROP_IN_MINUTES * 60 * 1000;
+  const slotMs = SIGNUP_SLOT_MINUTES * 60 * 1000;
+  const slots: OfficeHoursSlot[] = [];
+  for (const tutor of session.tutors) {
+    for (let i = 0; i < SIGNUP_SLOTS_PER_TUTOR; i++) {
+      const start = new Date(sessionStart + i * slotMs);
+      const end = new Date(start.getTime() + slotMs);
+      if (end.getTime() > bookableEnd) break;
+      slots.push({
+        id: slotId(tutor.name, start),
+        tutorName: tutor.name,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        past: now >= start,
+      });
+    }
+  }
+  return slots;
 }
 
 export async function getOfficeHours(

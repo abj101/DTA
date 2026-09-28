@@ -63,6 +63,8 @@
   --color-dta-nav-cta: var(--dta-nav-cta-bg);
   --color-dta-nav-cta-hover: var(--dta-nav-cta-bg-hover);
   --color-dta-inverse-bg: var(--dta-inverse-bg);
+  --color-dta-inverse-hover: var(--dta-inverse-bg-hover);
+  --color-dta-inverse-active: var(--dta-inverse-bg-active);
   --color-dta-inverse-text: var(--dta-inverse-text);
   --color-dta-inverse-muted: var(--dta-inverse-muted);
   --color-dta-status-surface: var(--dta-accent-status-surface);
@@ -89,6 +91,20 @@
 
   --shadow-dta-bloom: var(--dta-shadow-accent-bloom);
   --shadow-dta-lift: var(--dta-shadow-lift);
+}
+
+/* Tailwind has no --duration-* theme namespace, so these tokens need explicit utilities. */
+@utility duration-dta-hover {
+  --tw-duration: var(--dta-duration-hover);
+  transition-duration: var(--dta-duration-hover);
+}
+@utility duration-dta-card {
+  --tw-duration: var(--dta-duration-card);
+  transition-duration: var(--dta-duration-card);
+}
+@utility duration-dta-section {
+  --tw-duration: var(--dta-duration-section);
+  transition-duration: var(--dta-duration-section);
 }
 
 /* shadcn semantic tokens → DTA light editorial */

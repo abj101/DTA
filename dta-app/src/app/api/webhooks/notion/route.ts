@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { ACTIVE_STUDENTS_TAG } from "@/lib/office-hours-signups";
 import { syncSession } from "@/lib/session-sync";
 
 export const maxDuration = 60;
@@ -49,6 +51,9 @@ export async function POST(req: Request) {
   if (!event.type?.startsWith("page.") || event.entity?.type !== "page") {
     return NextResponse.json({ ok: true, ignored: event.type ?? "unknown" });
   }
+
+  // Cheap to refetch, so any page change refreshes the office hours roster.
+  revalidateTag(ACTIVE_STUDENTS_TAG, { expire: 0 });
 
   try {
     const result = await syncSession(event.entity.id);

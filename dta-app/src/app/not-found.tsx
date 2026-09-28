@@ -29,7 +29,7 @@ export default function NotFound() {
             <div className="mt-dta-xl flex flex-col gap-dta-sm sm:flex-row sm:flex-wrap sm:items-center">
               <Button
                 size="lg"
-                className="rounded-dta-sm px-[22px] py-6 text-base font-semibold shadow-none hover:bg-primary/90 sm:h-12"
+                className="rounded-dta-sm px-[22px] py-6 text-base font-semibold shadow-none hover:bg-dta-inverse-hover active:bg-dta-inverse-active sm:h-12"
                 render={<Link href="/" />}
                 nativeButton={false}
               >

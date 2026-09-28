@@ -48,7 +48,7 @@ export function Hero() {
               size="lg"
               className={cn(
                 BOOKING_CTA_LAYOUT,
-                "rounded-dta-sm hover:bg-primary/90",
+                "rounded-dta-sm hover:bg-dta-inverse-hover active:bg-dta-inverse-active",
                 "justify-center gap-0 px-4 text-[15px] sm:px-6 sm:text-[1rem]",
               )}
               render={<Link href="/contact" />}

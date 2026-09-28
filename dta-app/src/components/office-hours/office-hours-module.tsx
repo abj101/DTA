@@ -7,6 +7,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { OfficeHoursSignup } from "@/components/office-hours/signup-dialog";
 import { Separator } from "@/components/ui/separator";
 import {
   CONTACT_EMAIL,
@@ -27,9 +28,11 @@ const CONTACT_LINK_CLASS =
 function TutorPanel({
   tutors,
   headingId,
+  action,
 }: {
   tutors: OfficeHoursTutor[];
   headingId: string;
+  action?: ReactNode;
 }) {
   if (tutors.length === 0) return null;
 
@@ -61,6 +64,7 @@ function TutorPanel({
           </li>
         ))}
       </ul>
+      {action}
     </aside>
   );
 }
@@ -70,6 +74,7 @@ function SessionBlock({
   kickerId,
   tutors,
   tutorsHeadingId,
+  tutorsAction,
   labelledBy,
   happeningNow,
   children,
@@ -78,6 +83,7 @@ function SessionBlock({
   kickerId?: string;
   tutors: OfficeHoursTutor[];
   tutorsHeadingId: string;
+  tutorsAction?: ReactNode;
   labelledBy: string;
   happeningNow?: boolean;
   children: ReactNode;
@@ -89,23 +95,27 @@ function SessionBlock({
           Happening now
         </p>
       ) : null}
-      <p
-        id={kickerId}
-        className="text-[15px] font-medium text-dta-text-secondary md:text-base"
-      >
-        {kicker}
-      </p>
       <div
         className={
           tutors.length > 0
-            ? "mt-dta-sm grid grid-cols-[minmax(0,1fr)_minmax(10.75rem,max-content)] items-start gap-x-dta-md sm:gap-x-dta-lg"
-            : "mt-dta-sm"
+            ? "grid grid-cols-[minmax(0,1fr)_minmax(10.75rem,max-content)] items-start gap-x-dta-md sm:gap-x-dta-lg"
+            : undefined
         }
       >
         <div className="min-w-0">
-          {children}
+          <p
+            id={kickerId}
+            className="text-[15px] font-medium text-dta-text-secondary md:text-base"
+          >
+            {kicker}
+          </p>
+          <div className="mt-dta-sm">{children}</div>
         </div>
-        <TutorPanel tutors={tutors} headingId={tutorsHeadingId} />
+        <TutorPanel
+          tutors={tutors}
+          headingId={tutorsHeadingId}
+          action={tutorsAction}
+        />
       </div>
     </article>
   );
@@ -211,6 +221,7 @@ function NextUp({
       kicker={kicker}
       tutors={session.tutors}
       tutorsHeadingId="office-hours-available-tutors"
+      tutorsAction={<OfficeHoursSignup />}
       labelledBy="office-hours-next-when"
       happeningNow={session.happeningNow}
     >

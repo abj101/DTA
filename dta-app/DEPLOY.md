@@ -32,6 +32,13 @@ The same webhook and cron also rewrite the **Session Tracker** Google Sheet (`sr
 1. Enable the **Google Sheets API** in the same Google Cloud project as the service account.
 2. Share the spreadsheet with the service account email as **Editor**, and set `GOOGLE_SHEETS_ACCOUNTING_ID` to the ID from its URL (`/spreadsheets/d/<ID>/edit`).
 
+## Office hours signups
+
+The **Sign up** button on `/office-hours` books 30-minute slots in the featured session: three per listed tutor from the event's start, with the final 30 minutes shown as a drop-in-only row (`officeHoursSlots` in `src/lib/office-hours.ts`). Only students whose Notion Student Database page has **Status = Active** can book, matched by page title (case and spacing ignored), and each student can hold one upcoming booking. Bookings are **private** events on the office hours calendar, titled with the student's name and coloured by tutor (`TUTOR_COLOR_IDS` in `src/lib/office-hours-signups.ts`). The public iCal feed shows them as "Busy", and the office hours reader skips them. Delete a booking in Google Calendar to free its slot.
+
+1. **Calendar:** open the office hours calendar → **Settings and sharing** → **Share with specific people** → add the service account email with **Make changes to events**. Set `OFFICE_HOURS_CALENDAR_ID` to its **Calendar ID**.
+2. **Notion:** share the Student Database with the integration and set `NOTION_STUDENTS_DATA_SOURCE_ID` (data source ID, or the database ID from its URL). The active-student list is cached until the Notion webhook (above) reports any page change, so Status edits apply on the next name check.
+
 ## What not to do
 
 - Do not add a root-level `vercel.json` with `cd dta-app && …` commands. That builds in the subdirectory but makes post-build validation look at the wrong paths on Next.js 16.
