@@ -1,12 +1,19 @@
 import { auth, sheets, type sheets_v4 } from "@googleapis/sheets";
 
+import {
+  FREE_STATUS,
+  rowAmount,
+  sessionRows,
+  type AccountingRow,
+} from "@/lib/accounting-rows";
 import { querySessions, type Session } from "@/lib/notion-sessions";
 import { DTA_SCHEDULE_TZ, formatYmdInTimeZone } from "@/lib/pacific-date";
 
 /**
  * Each month tab ("SEP 26") holds a "Session Tracking" table in columns A:E
  * (Date, Student, Tutor, Status, Amount) that this module owns entirely: a sync
- * rewrites the month's rows from Notion and sizes the table and tab to fit them.
+ * rewrites the month's rows from Notion (one row per student), sizing the table
+ * and tab to fit them.
  * Summary tables to the right read it via formulas. The tab's conditional formats are
  * replaced with the tutor row colors on every write.
  */
@@ -16,8 +23,6 @@ const MONTH_ABBR = [
 ];
 const COLUMN_COUNT = 5;
 const ACCOUNTED_MEETING_TYPE = "Session";
-/** Notion Status value for free sessions; they are listed with a $0 amount. */
-const FREE_STATUS = "N/A";
 
 /** Amount is formatted by its CURRENCY column type; the DATE column type does not format. */
 const DATE_FORMAT = { type: "DATE", pattern: "m/d/yyyy" };
@@ -52,10 +57,14 @@ type Tab = {
   title: string;
   index: number;
   rowCount: number;
-  /** Rows the other tables on the tab (the summaries) need; the tab never shrinks below this. */
+  /** Rows the Template's summary tables need; the tab never shrinks below this. */
   minRowCount: number;
   ruleCount: number;
   table: { tableId: string; dataRows: number } | null;
+  /** Summary table ranges on the Template: the layout every month tab should keep. */
+  templateSummaries: sheets_v4.Schema$GridRange[];
+  /** This tab's own summary tables, so a write can pin them back after the tab grows. */
+  summaries: { tableId: string; range: sheets_v4.Schema$GridRange }[];
 };
 
 let client: sheets_v4.Sheets | null = null;
@@ -114,21 +123,14 @@ function sheetDate(ymd: string): number {
   return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86_400_000;
 }
 
-function amount(session: Session): number | null {
-  if (session.status === FREE_STATUS) return 0;
-  if (session.studentRates.length === 0 || session.studentRates.some((r) => r == null)) {
-    return null;
-  }
-  return session.studentRates.reduce<number>((sum, r) => sum + r!, 0);
-}
-
 function text(value: string): sheets_v4.Schema$ExtendedValue | undefined {
   return value ? { stringValue: value } : undefined;
 }
 
-/** A table row for `session`, or a cleared row when omitted. */
-function row(session?: Session): sheets_v4.Schema$RowData {
-  const total = session ? amount(session) : null;
+/** A table row for one student in `entry`, or a cleared row when omitted. */
+function row(entry?: AccountingRow): sheets_v4.Schema$RowData {
+  const session = entry?.session;
+  const total = entry ? rowAmount(entry) : null;
   return {
     values: [
       {
@@ -136,7 +138,7 @@ function row(session?: Session): sheets_v4.Schema$RowData {
         userEnteredFormat: { numberFormat: DATE_FORMAT },
       },
       {
-        userEnteredValue: text(session?.students.join(", ") ?? ""),
+        userEnteredValue: text(entry?.student ?? ""),
         userEnteredFormat: { textFormat: session ? { link: { uri: session.url } } : {} },
       },
       { userEnteredValue: text(session?.tutors.join(", ") ?? "") },
@@ -160,19 +162,28 @@ async function loadTabs(): Promise<Tab[]> {
     fields:
       "sheets(properties(sheetId,title,index,gridProperties.rowCount),tables(tableId,range),conditionalFormats(ranges))",
   });
-  return (data.sheets ?? []).map((sheet) => {
+  const sheets = data.sheets ?? [];
+  const templateSummaries = (sheets.find((s) => s.properties?.title === TEMPLATE_TAB)?.tables ?? [])
+    .filter((t) => (t.range?.startColumnIndex ?? 0) !== 0)
+    .map((t) => t.range!);
+  /* Keep the tab tall enough for the summaries even when the month has no sessions. */
+  const minRowCount = Math.max(0, ...templateSummaries.map((r) => r.endRowIndex ?? 0));
+  return sheets.map((sheet) => {
     const table = sheet.tables?.find((t) => (t.range?.startColumnIndex ?? 0) === 0);
-    const others = sheet.tables?.filter((t) => t !== table) ?? [];
     return {
       sheetId: sheet.properties?.sheetId ?? 0,
       title: sheet.properties?.title ?? "",
       index: sheet.properties?.index ?? 0,
       rowCount: sheet.properties?.gridProperties?.rowCount ?? 0,
-      minRowCount: Math.max(0, ...others.map((t) => t.range?.endRowIndex ?? 0)),
+      minRowCount,
       ruleCount: sheet.conditionalFormats?.length ?? 0,
       table: table?.tableId
         ? { tableId: table.tableId, dataRows: (table.range?.endRowIndex ?? 1) - 1 }
         : null,
+      templateSummaries,
+      summaries: (sheet.tables ?? [])
+        .filter((t) => t !== table && !!t.tableId && !!t.range)
+        .map((t) => ({ tableId: t.tableId!, range: t.range! })),
     };
   });
 }
@@ -249,7 +260,40 @@ function colorRules(sheetId: number, dataRows: number): sheets_v4.Schema$Conditi
 }
 
 /**
- * Rewrites a month's Session Tracking rows, sizing the table to one row per session
+ * Sheets grows any table sitting flush with the tab bottom, filling its last formula down,
+ * so a resize leaves runaway rows in the Earnings/Savings tables. Pin each summary table
+ * back to the Template's range and clear the values that spilled below it.
+ */
+function resetSummaries(sheetId: number, tab: Tab, rowCount: number): sheets_v4.Schema$Request[] {
+  const canonical = tab.templateSummaries;
+  if (canonical.length === 0) return [];
+  const requests: sheets_v4.Schema$Request[] = [];
+  for (const summary of tab.summaries) {
+    const range = canonical.find((r) => r.startColumnIndex === summary.range.startColumnIndex);
+    if (!range || (range.endRowIndex ?? 0) >= (summary.range.endRowIndex ?? 0)) continue;
+    requests.push({
+      updateTable: { table: { tableId: summary.tableId, range: { ...range, sheetId } }, fields: "range" },
+    });
+  }
+  const endRow = Math.max(0, ...canonical.map((r) => r.endRowIndex ?? 0));
+  if (rowCount > endRow) {
+    const startColumnIndex = Math.min(...canonical.map((r) => r.startColumnIndex ?? 0));
+    const endColumnIndex = Math.max(...canonical.map((r) => r.endColumnIndex ?? 0));
+    requests.push({
+      updateCells: {
+        start: { sheetId, rowIndex: endRow, columnIndex: startColumnIndex },
+        rows: Array.from({ length: rowCount - endRow }, () => ({
+          values: Array.from({ length: endColumnIndex - startColumnIndex }, () => ({})),
+        })),
+        fields: "userEnteredValue",
+      },
+    });
+  }
+  return requests;
+}
+
+/**
+ * Rewrites a month's Session Tracking rows, sizing the table to one row per student
  * (one blank row when there are none) and trimming the tab to match.
  */
 async function writeMonth(month: string, sessions: Session[], tabs: Tab[]) {
@@ -262,7 +306,8 @@ async function writeMonth(month: string, sessions: Session[], tabs: Tab[]) {
 
   const { sheetId } = tab;
   const sorted = [...sessions].sort((a, b) => Date.parse(a.start!) - Date.parse(b.start!));
-  const dataRows = Math.max(sorted.length, 1);
+  const entries = sessionRows(sorted);
+  const dataRows = Math.max(entries.length, 1);
   const rowCount = Math.max(dataRows + 1, tab.minRowCount);
   const requests: sheets_v4.Schema$Request[] = [];
 
@@ -298,10 +343,11 @@ async function writeMonth(month: string, sessions: Session[], tabs: Tab[]) {
       },
     });
   }
+  requests.push(...resetSummaries(sheetId, tab, rowCount));
   requests.push({
     updateCells: {
       start: { sheetId, rowIndex: 1, columnIndex: 0 },
-      rows: Array.from({ length: rowCount - 1 }, (_, i) => row(sorted[i])),
+      rows: Array.from({ length: rowCount - 1 }, (_, i) => row(entries[i])),
       fields: CELL_FIELDS,
     },
   });
