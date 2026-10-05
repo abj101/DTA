@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Mail, Phone } from "lucide-react";
+import { Mail } from "lucide-react";
 
 import { CalendlyEmbed } from "@/components/contact/calendly-embed";
 // Custom API-backed picker parked at appointment-picker.custom.tsx (+ /api/availability, /api/book).
 // import { AppointmentPicker } from "@/components/contact/appointment-picker.custom";
 // import { MessageForm } from "@/components/contact/message-form";
 import { LandingSection, sectionLabelClassName } from "@/components/landing/section";
-import {
-  CONTACT_EMAIL,
-  CONTACT_EMAIL_HREF,
-  CONTACT_PHONE_DISPLAY,
-  CONTACT_PHONE_HREF,
-} from "@/lib/contact";
+import { CONTACT_EMAIL, CONTACT_EMAIL_HREF } from "@/lib/contact";
 
 const CONTACT_LINK_CLASS =
   "inline-flex items-center gap-2 py-1 text-[15px] leading-normal text-dta-text-secondary transition-colors duration-dta-hover ease-dta-premium hover:text-dta-text-primary md:text-base";
@@ -98,14 +93,6 @@ export default function ContactPage() {
             >
               <Mail className="size-[1em] shrink-0" strokeWidth={2} aria-hidden />
               {CONTACT_EMAIL}
-            </Link>
-            <Link
-              href={CONTACT_PHONE_HREF}
-              className={CONTACT_LINK_CLASS}
-              aria-label={`Call ${CONTACT_PHONE_DISPLAY}`}
-            >
-              <Phone className="size-[1em] shrink-0" strokeWidth={2} aria-hidden />
-              {CONTACT_PHONE_DISPLAY}
             </Link>
           </div>
         </div>

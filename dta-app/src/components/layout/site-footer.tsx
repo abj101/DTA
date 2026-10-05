@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import {
-  CONTACT_EMAIL,
-  CONTACT_EMAIL_HREF,
-  CONTACT_PHONE_DISPLAY,
-  CONTACT_PHONE_HREF,
-} from "@/lib/contact";
+import { CONTACT_EMAIL, CONTACT_EMAIL_HREF } from "@/lib/contact";
 
 const CONTACT_LINK_CLASS =
   "inline-flex min-h-11 items-center text-sm text-dta-text-secondary transition-colors duration-dta-hover ease-dta-premium hover:text-dta-text-primary";
@@ -66,13 +61,6 @@ export function SiteFooter() {
                       aria-label={`Email ${CONTACT_EMAIL}`}
                     >
                       {CONTACT_EMAIL}
-                    </Link>
-                    <Link
-                      href={CONTACT_PHONE_HREF}
-                      className={CONTACT_LINK_CLASS}
-                      aria-label={`Call ${CONTACT_PHONE_DISPLAY}`}
-                    >
-                      {CONTACT_PHONE_DISPLAY}
                     </Link>
                   </div>
                 </div>
