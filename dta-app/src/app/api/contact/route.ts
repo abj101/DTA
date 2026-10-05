@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 
 import { contactPayloadSchema } from "@/lib/contact-schema";
+import { mailConfigured, sendNotification } from "@/lib/mailer";
 
 function firstValidationMessage(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "Invalid input";
-}
-
-function smtpConfigured(): boolean {
-  const host = process.env.SMTP_HOST?.trim();
-  const to = process.env.CONTACT_TO_EMAIL?.trim();
-  const from =
-    process.env.CONTACT_FROM?.trim() ?? process.env.SMTP_USER?.trim();
-  return Boolean(host && to && from);
 }
 
 export async function POST(req: Request) {
@@ -36,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid submission." }, { status: 400 });
   }
 
-  if (!smtpConfigured()) {
+  if (!mailConfigured()) {
     return NextResponse.json(
       {
         ok: false,
@@ -46,32 +38,6 @@ export async function POST(req: Request) {
       { status: 503 },
     );
   }
-
-  const host = process.env.SMTP_HOST!.trim();
-  const port = Number(process.env.SMTP_PORT ?? 587);
-  const secure =
-    process.env.SMTP_SECURE === "true" ||
-    process.env.SMTP_SECURE === "1" ||
-    port === 465;
-
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
-  const to = process.env.CONTACT_TO_EMAIL!.trim();
-  const from =
-    process.env.CONTACT_FROM?.trim() ?? process.env.SMTP_USER!.trim();
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth:
-      user && pass
-        ? {
-            user,
-            pass,
-          }
-        : undefined,
-  });
 
   const text = [
     `New message from dta-app contact form`,
@@ -85,9 +51,7 @@ export async function POST(req: Request) {
   ].join("\n");
 
   try {
-    await transporter.sendMail({
-      from,
-      to,
+    await sendNotification({
       replyTo: email,
       subject: `[DTA contact] ${subject} · ${grade}`,
       text,

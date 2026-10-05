@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { sendNotification } from "@/lib/mailer";
 import {
+  formatOfficeDate,
   getOfficeHours,
   mainSession,
   mapsSearchHref,
@@ -96,6 +98,27 @@ export async function POST(req: Request) {
         { ok: false, status: "slotTaken", error: SLOT_TAKEN },
         { status: 409 },
       );
+    }
+
+    // Best-effort notification; a mail failure must never fail the booking.
+    const start = new Date(slot.start);
+    try {
+      await sendNotification({
+        subject: `[DTA office hours] ${check.studentName} · ${formatOfficeDate(start)} ${formatSlotClock(start)}`,
+        text: [
+          "New office hours signup",
+          "",
+          `Student: ${check.studentName}`,
+          `Tutor: ${slot.tutorName}`,
+          `When: ${formatOfficeDate(start)}, ${formatSlotClock(start)} PT`,
+          `Venue: ${session.venue}`,
+          notes?.trim() ? `Notes: ${notes.trim()}` : null,
+        ]
+          .filter((line) => line !== null)
+          .join("\n"),
+      });
+    } catch (error) {
+      console.error("[office-hours] signup notification failed", error);
     }
   } catch (error) {
     console.error("[office-hours] signup failed", error);
