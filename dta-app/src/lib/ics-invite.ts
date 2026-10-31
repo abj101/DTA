@@ -1,5 +1,6 @@
 export type IcsInvite = {
   uid: string;
+  sequence?: number;
   start: string;
   end: string;
   summary: string;
@@ -41,6 +42,7 @@ export function buildIcs(invite: IcsInvite): string {
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${invite.uid}`,
+    invite.sequence !== undefined ? `SEQUENCE:${invite.sequence}` : null,
     `DTSTAMP:${icsDate(new Date().toISOString())}`,
     `DTSTART:${icsDate(invite.start)}`,
     `DTEND:${icsDate(invite.end)}`,

@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { AboutHero } from "@/components/about/about-hero";
 import { ApproachList } from "@/components/about/approach-list";
 import { FounderCards } from "@/components/about/founder-cards";
-import { LandingCTABanner } from "@/components/landing/cta-banner";
 import { SectionDivider } from "@/components/landing/section-divider";
 
 export const metadata: Metadata = {
@@ -24,10 +23,6 @@ export default function AboutPage() {
         <SectionDivider />
       </div>
       <ApproachList />
-      <div className="my-dta-lg md:my-dta-xl">
-        <SectionDivider />
-      </div>
-      <LandingCTABanner variant="about" />
     </main>
   );
 }

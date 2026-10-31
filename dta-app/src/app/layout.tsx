@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     template: "%s · Dublin Tutoring Association",
   },
   description:
-    "Private tutoring and college prep for families in Dublin, Pleasanton, and the Tri-Valley. Book a free consultation with credentialed peer tutors.",
+    "Private tutoring and college prep for families in Dublin, Pleasanton, and the Tri-Valley. Work with credentialed peer tutors.",
   openGraph: {
     title: "Dublin Tutoring Association · Private Tutoring & College Prep",
     description:
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Dublin Tutoring Association",
     description:
-      "Private tutoring and college prep for Tri-Valley families. Book a free consultation.",
+      "Private tutoring and college prep for Tri-Valley families.",
   },
 };
 

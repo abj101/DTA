@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, MenuIcon } from "lucide-react";
+import { Mail, MenuIcon } from "lucide-react";
 
 import { sectionLabelClassName } from "@/components/landing/section";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { BOOKING_CTA_NAV_LAYOUT } from "@/lib/booking-cta";
+import { CONTACT_EMAIL_HREF } from "@/lib/contact";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/office-hours", label: "Hours" },
-  { href: "/contact", label: "Contact" },
 ] as const;
 
 function navLinkClass(pathname: string, href: string) {
@@ -80,34 +79,16 @@ export function SiteNavbar() {
               </Link>
             ))}
           </nav>
-
-          <Button
-            variant="default"
-            size="default"
-            className={cn(
-              BOOKING_CTA_NAV_LAYOUT,
-              "shrink-0 rounded-dta-sm border-0 bg-dta-nav-cta text-white hover:bg-dta-nav-cta-hover",
-            )}
-            render={<Link href="/contact" />}
-            nativeButton={false}
-          >
-            <span className="leading-none">Book Free Consultation</span>
+          <Button className="shrink-0 rounded-dta-sm border-0 bg-dta-nav-cta text-white hover:bg-dta-nav-cta-hover" render={<a href={CONTACT_EMAIL_HREF} />} nativeButton={false}>
+            <Mail className="size-4" aria-hidden />
+            Email us
           </Button>
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
-          <Button
-            variant="default"
-            size="default"
-            className={cn(
-              "h-9 min-h-9 gap-1.5 rounded-dta-sm border-0 bg-dta-nav-cta px-3 text-[14px] font-medium leading-none tracking-tight text-white shadow-none hover:bg-dta-nav-cta-hover",
-            )}
-            render={<Link href="/contact" />}
-            nativeButton={false}
-            aria-label="Book free consultation"
-          >
-            <Calendar className="size-3.5 shrink-0" aria-hidden />
-            <span className="leading-none whitespace-nowrap">Book Free</span>
+          <Button className="h-9 rounded-dta-sm border-0 bg-dta-nav-cta px-3 text-white hover:bg-dta-nav-cta-hover" render={<a href={CONTACT_EMAIL_HREF} />} nativeButton={false}>
+            <Mail className="size-4" aria-hidden />
+            Email us
           </Button>
           <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange} modal>
             <SheetTrigger
@@ -147,23 +128,6 @@ export function SiteNavbar() {
                     {label}
                   </Link>
                 ))}
-                <Button
-                  variant="default"
-                  size="default"
-                  className={cn(
-                    BOOKING_CTA_NAV_LAYOUT,
-                    "mt-dta-md h-10 min-h-10 w-full rounded-dta-sm border-0 bg-dta-nav-cta text-white hover:bg-dta-nav-cta-hover",
-                  )}
-                  render={
-                    <Link
-                      href="/contact"
-                      onClick={() => setMobileOpen(false)}
-                    />
-                  }
-                  nativeButton={false}
-                >
-                  <span className="leading-none">Book Free Consultation</span>
-                </Button>
               </nav>
             </SheetContent>
           </Sheet>

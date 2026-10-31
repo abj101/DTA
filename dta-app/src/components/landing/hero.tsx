@@ -1,9 +1,5 @@
 import Link from "next/link";
-import { Calendar } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { BOOKING_CTA_LAYOUT } from "@/lib/booking-cta";
-import { cn } from "@/lib/utils";
 
 export function Hero() {
   return (
@@ -44,23 +40,6 @@ export function Hero() {
             className="dta-rise mt-dta-xl flex flex-wrap items-center gap-x-dta-lg gap-y-dta-md"
             style={{ animationDelay: "340ms" }}
           >
-            <Button
-              size="lg"
-              className={cn(
-                BOOKING_CTA_LAYOUT,
-                "rounded-dta-sm hover:bg-dta-inverse-hover active:bg-dta-inverse-active",
-                "justify-center gap-0 px-4 text-[15px] sm:px-6 sm:text-[1rem]",
-              )}
-              render={<Link href="/contact" />}
-              nativeButton={false}
-            >
-              <span className="inline-flex items-center justify-center gap-2 sm:gap-2.5">
-                <Calendar className="size-3.5 shrink-0 sm:size-4" aria-hidden />
-                <span className="leading-none whitespace-nowrap">
-                  Book Free Consultation
-                </span>
-              </span>
-            </Button>
             <Link
               href="/about"
               className="text-[15px] font-medium text-dta-text-secondary underline decoration-dta-border underline-offset-[5px] transition-colors duration-dta-hover ease-dta-premium hover:text-dta-text-primary"

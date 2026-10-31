@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { buildIcs } from "@/lib/ics-invite";
 import { sendNotification } from "@/lib/mailer";
 import {
   formatOfficeDate,
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, slotId, notes, website } = parsed.data;
+  const { name, email, slotId, notes, website } = parsed.data;
   if (website?.trim()) {
     return NextResponse.json<SignupResponse>(
       { ok: false, error: "Invalid submission." },
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
     );
   }
 
+  let emailSent = false;
   try {
     const check = await checkStudentName(name);
     if (check.status === "notFound") {
@@ -91,6 +93,7 @@ export async function POST(req: Request) {
       session,
       slot,
       studentName: check.studentName,
+      email,
       notes,
     });
     if (result === "exists") {
@@ -109,6 +112,7 @@ export async function POST(req: Request) {
           "New office hours signup",
           "",
           `Student: ${check.studentName}`,
+          `Email: ${email}`,
           `Tutor: ${slot.tutorName}`,
           `When: ${formatOfficeDate(start)}, ${formatSlotClock(start)} PT`,
           `Venue: ${session.venue}`,
@@ -119,6 +123,28 @@ export async function POST(req: Request) {
       });
     } catch (error) {
       console.error("[office-hours] signup notification failed", error);
+    }
+    try {
+      await sendNotification({
+        to: email,
+        subject: "Your DTA office hours confirmation",
+        text: `Hi ${check.studentName},\n\nYou are booked for office hours with ${slot.tutorName} on ${formatOfficeDate(start)} at ${formatSlotClock(start)} PT.\n\nLocation: ${[session.venue, session.address].filter(Boolean).join(", ")}\n\nYour calendar event is attached.`,
+        attachments: [{
+          filename: "dta-office-hours.ics",
+          contentType: "text/calendar; charset=utf-8; method=PUBLISH",
+          content: buildIcs({
+            uid: `${slot.start}-${slot.tutorName.replace(/\s+/g, "-")}@dublintutoring`,
+            start: slot.start, end: slot.end,
+            summary: `DTA office hours with ${slot.tutorName}`,
+            description: `Office hours slot with ${slot.tutorName}, booked on the DTA website.`,
+            location: [session.venue, session.address].filter(Boolean).join(", "),
+            url: session.mapsQuery && session.address ? mapsSearchHref(session.mapsQuery) : undefined,
+          }),
+        }],
+      });
+      emailSent = true;
+    } catch (error) {
+      console.error("[office-hours] confirmation email failed", error);
     }
   } catch (error) {
     console.error("[office-hours] signup failed", error);
@@ -131,6 +157,7 @@ export async function POST(req: Request) {
   return NextResponse.json<SignupResponse>({
     ok: true,
     status: "booked",
+    emailSent,
     tutorName: slot.tutorName,
     time: formatSlotClock(new Date(slot.start)),
     start: slot.start,

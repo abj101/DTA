@@ -67,12 +67,17 @@ const { mailConfigured, sendNotification } = await import("../src/lib/mailer.ts"
 assert.equal(mailConfigured(), true, "mailConfigured should be true with SMTP set");
 
 await sendNotification({ subject: "SUBJ-123", text: "New office hours signup\nStudent: Ana" });
-for (let i = 0; i < 200 && messages.length === 0; i++) await new Promise((r) => setTimeout(r, 20));
+await sendNotification({ to: "student@example.com", subject: "Booking confirmation", text: "You are booked", attachments: [{ filename: "dta-office-hours.ics", content: "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n", contentType: "text/calendar; charset=utf-8; method=PUBLISH" }] });
+for (let i = 0; i < 200 && messages.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
 
-assert.equal(messages.length, 1, "exactly one message should be delivered");
+assert.equal(messages.length, 2, "both messages should be delivered");
 assert.match(messages[0].rcpt, /inbox@example\.com/, "delivered to the notification inbox");
 assert.match(messages[0].data, /Subject: SUBJ-123/, "subject is present");
 assert.match(messages[0].data, /Student: Ana/, "body is present");
+
+assert.match(messages[1].rcpt, /student@example\.com/, "confirmation reaches the student");
+assert.match(messages[1].data, /filename=dta-office-hours\.ics/, "calendar attachment is present");
+assert.match(messages[1].data, /text\/calendar/, "attachment has calendar content type");
 
 clearTimeout(guard);
 server.close();

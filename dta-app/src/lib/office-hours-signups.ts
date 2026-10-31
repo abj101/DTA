@@ -185,11 +185,13 @@ export async function createSignup({
   session,
   slot,
   studentName,
+  email,
   notes,
 }: {
   session: OfficeHoursSession;
   slot: OfficeHoursSlot;
   studentName: string;
+  email: string;
   notes?: string;
 }): Promise<"created" | "exists"> {
   const start = new Date(slot.start);
@@ -214,6 +216,11 @@ export async function createSignup({
       private: {
         source: SIGNUP_SOURCE,
         studentKey: normalizeName(studentName),
+        studentEmail: email,
+        sessionId: session.id,
+        sessionStart: session.start,
+        sessionEnd: session.end,
+        sessionLocation: JSON.stringify([session.venue, session.address]),
         tutor: slot.tutorName,
         slotId: slot.id,
       },

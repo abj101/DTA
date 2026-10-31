@@ -12,6 +12,7 @@ export const signupValidatePayloadSchema = z.object({
 
 export const signupPayloadSchema = z.object({
   name: studentName,
+  email: z.string().trim().email("Enter a valid email address").max(254),
   slotId: z.string().trim().min(1, "Pick a time slot").max(200),
   notes: z
     .string()
@@ -56,6 +57,7 @@ export type SignupResponse =
   | {
       ok: true;
       status: "booked";
+      emailSent: boolean;
       tutorName: string;
       time: string;
       start: string;

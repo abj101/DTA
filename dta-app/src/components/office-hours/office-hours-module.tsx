@@ -130,7 +130,7 @@ function Fallback({
   body: string;
 }) {
   return (
-    <div className="border-t border-dta-border pt-dta-lg">
+    <div className="border-t border-dta-border pt-dta-xl">
       <p className="font-heading text-[clamp(1.25rem,2.6vw,1.5rem)] font-semibold leading-[1.2] tracking-[-0.02em] text-dta-text-primary">
         {headline}
       </p>
@@ -287,7 +287,7 @@ export function OfficeHoursModule({ data }: { data: OfficeHoursResult }) {
     );
   }
 
-  if (data.status === "empty") {
+  if (data.status === "empty" || (data.status === "ok" && !data.thisWeek && !data.nextWeek)) {
     return (
       <Fallback
         headline="No office hours on the calendar right now"
@@ -300,7 +300,7 @@ export function OfficeHoursModule({ data }: { data: OfficeHoursResult }) {
   const nextWeek = data.nextWeek;
 
   return (
-    <div className="border-t border-dta-border pt-dta-lg">
+    <div className="border-t border-dta-border pt-dta-xl">
       {hero ? (
         <NextUp session={hero} kicker={hero.title} />
       ) : nextWeek ? (
@@ -309,7 +309,7 @@ export function OfficeHoursModule({ data }: { data: OfficeHoursResult }) {
 
       {hero && nextWeek ? (
         <>
-          <Separator className="my-dta-lg bg-dta-border" />
+          <Separator className="my-dta-xl bg-dta-border" />
           <NextWeekBlock session={nextWeek} />
         </>
       ) : null}

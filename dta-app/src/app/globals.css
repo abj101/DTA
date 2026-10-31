@@ -172,11 +172,11 @@
 }
 
 /* Short pages: keep footer tight to content instead of sticky-footer gap */
-body:has([data-contact-page], [data-office-hours-page]) .site-content {
+body:has([data-contact-page]) .site-content {
   flex: 0 1 auto;
 }
 
-body:has([data-contact-page], [data-office-hours-page]) footer {
+body:has([data-contact-page]) footer {
   margin-top: 0;
 }
 

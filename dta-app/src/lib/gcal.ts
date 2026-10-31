@@ -102,3 +102,8 @@ export async function listNotionEvents(calendarId: string, since: Date): Promise
   const events = await listEventsByPrivateProps(calendarId, { source: "notion" }, since);
   return events.flatMap((event) => (event.id ? [event.id] : []));
 }
+
+/** Update booking metadata without replacing the event. */
+export async function patchEvent(calendarId: string, eventId: string, event: CalendarEvent) {
+  await gcal().events.patch({ calendarId, eventId, requestBody: event });
+}

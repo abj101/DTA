@@ -27,10 +27,14 @@ export async function sendNotification({
   subject,
   text,
   replyTo,
+  to: recipient,
+  attachments,
 }: {
   subject: string;
   text: string;
   replyTo?: string;
+  to?: string;
+  attachments?: { filename: string; content: string; contentType: string }[];
 }): Promise<void> {
   const { host, port, secure, user, pass, to, from } = config();
   if (!host || !to || !from) throw new Error("SMTP is not configured");
@@ -40,5 +44,5 @@ export async function sendNotification({
     secure,
     auth: user && pass ? { user, pass } : undefined,
   });
-  await transporter.sendMail({ from, to, replyTo, subject, text });
+  await transporter.sendMail({ from, to: recipient ?? to, replyTo, subject, text, attachments });
 }

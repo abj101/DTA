@@ -55,6 +55,7 @@ export function tutorsFromDescription(
 export type OfficeHoursResult =
   | {
       status: "ok";
+      sessions: OfficeHoursSession[];
       thisWeek: OfficeHoursSession | null;
       nextWeek: OfficeHoursSession | null;
     }
@@ -119,7 +120,7 @@ function fromEvent(event: IcalEventLike & { uid?: string; recurrenceId?: IcalDat
   const recId = event.recurrenceId?.toJSDate();
   return {
     uid: event.uid ?? "",
-    recurrenceKey: recurrenceKeyFrom(recId ?? start),
+    recurrenceKey: recId ? recurrenceKeyFrom(recId) : "",
     isException: Boolean(recId),
     title: event.summary?.trim() || "Office Hours",
     location: event.location ?? "",
@@ -267,7 +268,7 @@ function firstInRange(
 function toSession(item: TimedOccurrence, now: Date): OfficeHoursSession {
   const { venue, address, mapsQuery } = parseLocation(item.location);
   return {
-    id: item.start.toISOString(),
+    id: `${item.uid}::${item.recurrenceKey}`,
     title: item.title,
     start: item.start.toISOString(),
     end: item.end.toISOString(),
@@ -425,11 +426,11 @@ export async function getOfficeHours(
     const thisWeek = firstInRange(sessions, thisWeekStart, nextWeekStart);
     const nextWeek = firstInRange(sessions, nextWeekStart, weekAfterStart);
 
-    if (!thisWeek && !nextWeek) {
+    if (!thisWeek && !nextWeek && sessions.length === 0) {
       return { status: "empty" };
     }
 
-    return { status: "ok", thisWeek, nextWeek };
+    return { status: "ok", sessions, thisWeek, nextWeek };
   } catch (error) {
     console.error("office-hours: ICS fetch failed", error);
     return { status: "error" };

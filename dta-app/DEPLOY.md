@@ -47,3 +47,5 @@ The **Sign up** button on `/office-hours` books 30-minute slots in the featured 
 ## GitHub Pages (separate)
 
 Static export runs from the `github-pages` branch via GitHub Actions, not from Vercel.
+
+Office-hours bookings created after change tracking was added retain the student email and a snapshot of the source session in private calendar metadata. Loading the office-hours page and the existing daily `/api/sync/sessions` cron check for changes to that session’s hours or location and emails affected students; their individual booking times remain unchanged. Failed emails are retried on the next run. Existing bookings without this metadata require manual notification. The check uses the public iCal feed and its 21-day window, and does not handle cancellations or sessions outside that window.

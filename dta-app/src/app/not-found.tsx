@@ -24,7 +24,7 @@ export default function NotFound() {
               We couldn&apos;t find that page
             </h1>
             <p className="mt-dta-lg max-w-[65ch] text-base leading-[1.65] text-dta-text-secondary md:text-lg md:leading-relaxed">
-              The link may be wrong or the page may have moved. Go home, or get in touch from Contact.
+              The link may be wrong or the page may have moved. Go home or learn more about us.
             </p>
             <div className="mt-dta-xl flex flex-col gap-dta-sm sm:flex-row sm:flex-wrap sm:items-center">
               <Button
@@ -34,15 +34,6 @@ export default function NotFound() {
                 nativeButton={false}
               >
                 Back to Home →
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="rounded-dta-sm border-dta-border bg-transparent px-[22px] py-6 text-base font-semibold text-dta-text-primary hover:bg-dta-surface hover:text-dta-text-primary sm:h-12"
-                render={<Link href="/contact" />}
-                nativeButton={false}
-              >
-                Contact
               </Button>
               <Button
                 variant="ghost"

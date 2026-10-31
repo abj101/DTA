@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { notifyOfficeHoursChanges } from "@/lib/office-hours-update";
 import { syncAllSessions } from "@/lib/session-sync";
 
 export const maxDuration = 300;
@@ -15,8 +16,9 @@ export async function GET(req: Request) {
 
   try {
     const summary = await syncAllSessions();
+    const officeHours = await notifyOfficeHoursChanges();
     console.log("[session-sync] full resync", summary);
-    return NextResponse.json({ ok: true, ...summary });
+    return NextResponse.json({ ok: true, ...summary, officeHours });
   } catch (error) {
     console.error("[session-sync] full resync failed", error);
     return NextResponse.json({ ok: false, error: "Resync failed." }, { status: 500 });

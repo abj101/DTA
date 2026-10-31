@@ -150,6 +150,7 @@ export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
   });
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [nameStatus, setNameStatus] = React.useState<NameStatus>("idle");
   const [submitting, setSubmitting] = React.useState(false);
@@ -222,6 +223,7 @@ export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
     setSlots(({ data }) => ({ status: "loading", data }));
     setSelectedId(null);
     setName("");
+    setEmail("");
     setNotes("");
     setNameStatus("idle");
     setSubmitting(false);
@@ -244,6 +246,7 @@ export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
         },
         body: JSON.stringify({
           name: trimmedName,
+          email: email.trim(),
           slotId: selectedId,
           notes: notes.trim(),
           website: websiteRef.current?.value ?? "",
@@ -279,7 +282,7 @@ export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
 
   const busy = nameStatus === "checking" || submitting;
   const canConfirm =
-    Boolean(selectedId) && Boolean(notes.trim()) && nameStatus === "valid" && !submitting;
+    Boolean(selectedId) && Boolean(email.trim()) && Boolean(notes.trim()) && nameStatus === "valid" && !submitting;
   const warning =
     submitError ?? NAME_WARNINGS[nameStatus] ?? null;
   const missingHint =
@@ -366,7 +369,11 @@ export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
                   }}
                 />
 
-                <form className="mt-dta-lg space-y-dta-md" onSubmit={handleSubmit} noValidate>
+                <form className="mt-dta-lg space-y-dta-md" onSubmit={handleSubmit}>
+                  <div className="space-y-dta-sm">
+                    <Label htmlFor="office-hours-email">Email<span aria-hidden>*</span></Label>
+                    <Input id="office-hours-email" name="email" type="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={cn(FIELD_CLASS, "!h-11")} />
+                  </div>
                   <div className="space-y-dta-sm">
                     <Label htmlFor="office-hours-notes" className="gap-0">
                       Notes<span aria-hidden>*</span>
@@ -497,6 +504,9 @@ export function OfficeHoursSignup({ initial }: { initial: SignupSlotsView }) {
                       You&apos;re booked with {booked.tutorName} at {booked.time}
                     </p>
                     <BookedLocation booked={booked} />
+                    <p className="mt-dta-xs text-sm text-dta-text-secondary">
+                      {booked.emailSent ? `A confirmation and calendar event were sent to ${email.trim()}.` : "We couldn’t send your confirmation email. Please add the event to your calendar below."}
+                    </p>
                     <div className="mt-dta-lg flex items-center justify-between gap-dta-sm">
                       <Button
                         type="button"

@@ -8,7 +8,7 @@ import {
 const ROWS = [
   {
     step: "01",
-    title: "Book a free 30-minute consultation",
+    title: "Get in contact with us",
     detail: "We learn about your student and share our honest recommendation.",
   },
   {
