@@ -2,17 +2,21 @@ import { auth, sheets, type sheets_v4 } from "@googleapis/sheets";
 
 import {
   FREE_STATUS,
+  chargeRows,
+  isAccountable,
   rowAmount,
   sessionRows,
   type AccountingRow,
 } from "@/lib/accounting-rows";
+import type { Charge } from "@/lib/charges";
+import { chargesBySession, chargesConfigured } from "@/lib/notion-charges";
 import { querySessions, type Session } from "@/lib/notion-sessions";
 import { DTA_SCHEDULE_TZ, formatYmdInTimeZone } from "@/lib/pacific-date";
 
 /**
  * Each month tab ("SEP 26") holds a "Session Tracking" table in columns A:E
  * (Date, Student, Tutor, Status, Amount) that this module owns entirely: a sync
- * rewrites the month's rows from Notion (one row per student), sizing the table
+ * rewrites the month's rows from the Notion Session Charges ledger (one row per charge), sizing the table
  * and tab to fit them.
  * Summary tables to the right read it via formulas. The tab's conditional formats are
  * replaced with the tutor row colors on every write.
@@ -22,7 +26,6 @@ const MONTH_ABBR = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
 ];
 const COLUMN_COUNT = 5;
-const ACCOUNTED_MEETING_TYPE = "Session";
 
 /** Amount is formatted by its CURRENCY column type; the DATE column type does not format. */
 const DATE_FORMAT = { type: "DATE", pattern: "m/d/yyyy" };
@@ -98,7 +101,7 @@ function sessionYmd(session: Session): string {
 }
 
 /** "YYYY-MM" */
-function sessionMonth(session: Session): string {
+export function sessionMonth(session: Session): string {
   return sessionYmd(session).slice(0, 7);
 }
 
@@ -111,10 +114,6 @@ function tabMonth(title: string): string | null {
   const match = /^([A-Z]{3}) (\d{2})$/.exec(title);
   const index = match ? MONTH_ABBR.indexOf(match[1]) : -1;
   return index < 0 ? null : `20${match![2]}-${String(index + 1).padStart(2, "0")}`;
-}
-
-function isAccountable(session: Session): boolean {
-  return !session.deleted && session.meetingType === ACCOUNTED_MEETING_TYPE && !!session.start;
 }
 
 /** Days since 1899-12-30, the Sheets date epoch. */
@@ -139,10 +138,10 @@ function row(entry?: AccountingRow): sheets_v4.Schema$RowData {
       },
       {
         userEnteredValue: text(entry?.student ?? ""),
-        userEnteredFormat: { textFormat: session ? { link: { uri: session.url } } : {} },
+        userEnteredFormat: { textFormat: entry ? { link: { uri: entry.url } } : {} },
       },
       { userEnteredValue: text(session?.tutors.join(", ") ?? "") },
-      { userEnteredValue: text(session?.status ?? "") },
+      { userEnteredValue: text(entry?.status ?? "") },
       { userEnteredValue: total == null ? undefined : { numberValue: total } },
     ],
   };
@@ -188,8 +187,11 @@ async function loadTabs(): Promise<Tab[]> {
   });
 }
 
-/** Months whose tab links a row to this Notion page. */
-async function monthsContaining(pageId: string, tabs: Tab[]): Promise<string[]> {
+/**
+ * Months whose tab links a row to any of these Notion pages: the session itself (rows
+ * written before the Charges database) or its charge pages.
+ */
+async function monthsContaining(pageIds: string[], tabs: Tab[]): Promise<string[]> {
   const monthTabs = tabs.filter((t) => tabMonth(t.title));
   if (monthTabs.length === 0) return [];
   const { data } = await gsheets().spreadsheets.get({
@@ -197,12 +199,16 @@ async function monthsContaining(pageId: string, tabs: Tab[]): Promise<string[]> 
     ranges: monthTabs.map((t) => `'${t.title}'!B2:B`),
     fields: "sheets(properties.title,data.rowData.values.userEnteredFormat.textFormat.link.uri)",
   });
-  const id = pageId.replace(/-/g, "");
+  const ids = pageIds.map((id) => id.replace(/-/g, ""));
   return (data.sheets ?? [])
     .filter((sheet) =>
       sheet.data?.some((d) =>
         d.rowData?.some((r) =>
-          r.values?.[0]?.userEnteredFormat?.textFormat?.link?.uri?.replace(/-/g, "").includes(id),
+          ids.some((id) =>
+            r.values?.[0]?.userEnteredFormat?.textFormat?.link?.uri
+              ?.replace(/-/g, "")
+              .includes(id),
+          ),
         ),
       ),
     )
@@ -296,7 +302,12 @@ function resetSummaries(sheetId: number, tab: Tab, rowCount: number): sheets_v4.
  * Rewrites a month's Session Tracking rows, sizing the table to one row per student
  * (one blank row when there are none) and trimming the tab to match.
  */
-async function writeMonth(month: string, sessions: Session[], tabs: Tab[]) {
+async function writeMonth(
+  month: string,
+  sessions: Session[],
+  tabs: Tab[],
+  charges?: Map<string, Charge[]>,
+) {
   let tab = tabs.find((t) => t.title === tabName(month));
   if (!tab) {
     if (sessions.length === 0) return;
@@ -306,7 +317,7 @@ async function writeMonth(month: string, sessions: Session[], tabs: Tab[]) {
 
   const { sheetId } = tab;
   const sorted = [...sessions].sort((a, b) => Date.parse(a.start!) - Date.parse(b.start!));
-  const entries = sessionRows(sorted);
+  const entries = charges ? chargeRows(sorted, charges) : sessionRows(sorted);
   const dataRows = Math.max(entries.length, 1);
   const rowCount = Math.max(dataRows + 1, tab.minRowCount);
   const requests: sheets_v4.Schema$Request[] = [];
@@ -370,27 +381,49 @@ async function accountableSessions(since: Date, before?: Date): Promise<Session[
   return (await querySessions(since, before)).filter(isAccountable);
 }
 
-async function rewriteMonth(month: string, tabs: Tab[]) {
+async function rewriteMonth(month: string, tabs: Tab[], charges?: Map<string, Charge[]>) {
   const { since, before } = monthBounds(month);
   const sessions = (await accountableSessions(since, before)).filter(
     (s) => sessionMonth(s) === month,
   );
-  await writeMonth(month, sessions, tabs);
+  await writeMonth(month, sessions, tabs, charges);
 }
 
-/** Rewrites every month tab this page is in now or was in before (webhook path). */
-export async function syncSessionSheet(pageId: string, session: Session | null): Promise<string[]> {
+/** The ledger when the Charges database is configured; otherwise rows fall back to sessions. */
+async function loadCharges(): Promise<Map<string, Charge[]> | undefined> {
+  return chargesConfigured() ? chargesBySession() : undefined;
+}
+
+/**
+ * Rewrites every month tab this session is in now or was in before (webhook path).
+ * `chargeIds` are the session's charge pages, which rows link to once charges exist.
+ */
+export async function syncSessionSheet(
+  pageId: string,
+  session: Session | null,
+  chargeIds: string[] = [],
+): Promise<string[]> {
   const tabs = await loadTabs();
-  const months = new Set(await monthsContaining(pageId, tabs));
+  const months = new Set(await monthsContaining([pageId, ...chargeIds], tabs));
   if (session && isAccountable(session)) months.add(sessionMonth(session));
-  for (const month of months) await rewriteMonth(month, tabs);
+  const charges = await loadCharges();
+  for (const month of months) await rewriteMonth(month, tabs, charges);
   return [...months].map(tabName);
+}
+
+/** Rewrites specific months ("YYYY-MM") that exist or have accountable sessions. */
+export async function syncMonths(months: string[]): Promise<string[]> {
+  const tabs = await loadTabs();
+  const charges = await loadCharges();
+  for (const month of months) await rewriteMonth(month, tabs, charges);
+  return months.map(tabName);
 }
 
 /** Rewrites every month from `since`'s month onward, including existing tabs with no sessions. */
 export async function syncAllSessionSheets(since: Date): Promise<string[]> {
   const tabs = await loadTabs();
   const firstMonth = formatYmdInTimeZone(since, DTA_SCHEDULE_TZ).slice(0, 7);
+  const charges = await loadCharges();
   const byMonth = new Map<string, Session[]>();
   for (const tab of tabs) {
     const month = tabMonth(tab.title);
@@ -401,6 +434,6 @@ export async function syncAllSessionSheets(since: Date): Promise<string[]> {
     if (month >= firstMonth) byMonth.set(month, [...(byMonth.get(month) ?? []), session]);
   }
   const months = [...byMonth.keys()].sort();
-  for (const month of months) await writeMonth(month, byMonth.get(month)!, tabs);
+  for (const month of months) await writeMonth(month, byMonth.get(month)!, tabs, charges);
   return months.map(tabName);
 }

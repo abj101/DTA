@@ -1,8 +1,20 @@
-import { syncAllSessionSheets, syncSessionSheet } from "@/lib/accounting-sheet";
+import {
+  sessionMonth,
+  syncAllSessionSheets,
+  syncMonths,
+  syncSessionSheet,
+} from "@/lib/accounting-sheet";
+import { chargeFromPage } from "@/lib/charges";
 import { deleteEvent, listNotionEvents, upsertEvent, type CalendarEvent } from "@/lib/gcal";
 import {
+  chargesBySession,
+  chargesConfigured,
+  pageKind,
+  reconcileSession,
+  refreshStudentCharges,
+} from "@/lib/notion-charges";
+import {
   getSessionPage,
-  isSessionPage,
   querySessions,
   toSession,
   type Session,
@@ -95,7 +107,7 @@ function description(session: Session): string {
 export type SyncResult = {
   pageId: string;
   title?: string;
-  action: "upserted" | "deleted" | "skipped";
+  action: "upserted" | "deleted" | "skipped" | "synced";
   calendars?: string[];
   reason?: string;
 };
@@ -168,16 +180,71 @@ async function both<A, B>(a: Promise<A>, b: Promise<B>): Promise<[A, B]> {
   return [ra.value, rb.value];
 }
 
-/** Sync a single Notion page (webhook path). */
+/** Placeholder for a session page that no longer exists, so its charges still get cleaned up. */
+function goneSession(pageId: string): Session {
+  return {
+    pageId,
+    url: "",
+    deleted: true,
+    title: "",
+    start: null,
+    end: null,
+    timeZone: null,
+    tutors: [],
+    students: [],
+    studentIds: [],
+    studentRates: [],
+    meetingType: null,
+    meetingTypeColor: null,
+    status: null,
+    details: [],
+  };
+}
+
+/** Reconciles a session's charges (when the ledger is configured), then rebuilds its sheet months. */
+async function syncChargesAndSheet(pageId: string, session: Session | null): Promise<string[]> {
+  const reconciled = chargesConfigured()
+    ? await reconcileSession(session ?? goneSession(pageId))
+    : null;
+  return syncSessionSheet(pageId, session, reconciled?.chargeIds ?? []);
+}
+
+/**
+ * Sync a single Notion page (webhook path), routed by the database it lives in:
+ * session -> charges + calendar + sheet; charge -> that month's sheet; student -> the
+ * student's not-yet-frozen charges and the months they touch.
+ */
 export async function syncSession(pageId: string): Promise<SyncResult & { sheets?: string[] }> {
   const page = await getSessionPage(pageId);
-  if (page && !(await isSessionPage(page))) {
-    return { pageId, action: "skipped", reason: "not in Session Calendar" };
+  const kind = page ? await pageKind(page) : "session";
+
+  if (page && kind === "charge") {
+    const charge = chargeFromPage(page);
+    if (!charge) return { pageId, action: "skipped", reason: "incomplete charge" };
+    const sessionPage = await getSessionPage(charge.sessionId);
+    const session = sessionPage ? await toSession(sessionPage) : null;
+    // A cleared Standard Rate (re-snapshot) or a trashed charge (recreate) needs a reconcile.
+    const needsReconcile = !!session && (charge.standardRate == null || page.in_trash);
+    const sheets = needsReconcile
+      ? await syncChargesAndSheet(charge.sessionId, session)
+      : await syncSessionSheet(charge.sessionId, session, [charge.pageId]);
+    return { pageId, action: "synced", reason: "charge page", sheets };
+  }
+
+  if (page && kind === "student") {
+    if (!chargesConfigured()) return { pageId, action: "skipped", reason: "charges not configured" };
+    const touched = await refreshStudentCharges(pageId);
+    const sheets = await syncMonths([...new Set(touched.map(sessionMonth))].sort());
+    return { pageId, action: "synced", reason: "student page", sheets };
+  }
+
+  if (page && kind !== "session") {
+    return { pageId, action: "skipped", reason: "not a tracked database" };
   }
   const session = page ? await toSession(page) : null;
   const [calendar, sheets] = await both(
     syncCalendars(pageId, session),
-    syncSessionSheet(pageId, session),
+    syncChargesAndSheet(pageId, session),
   );
   return { ...calendar, sheets };
 }
@@ -185,11 +252,28 @@ export async function syncSession(pageId: string): Promise<SyncResult & { sheets
 /** Reconcile every recent session, then delete Notion-tagged events with no matching page. */
 export async function syncAllSessions() {
   const since = new Date(Date.now() - RESYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const charges = await reconcileAllCharges(since);
   const [calendars, sheets] = await both(
     syncAllCalendars(since),
     syncAllSessionSheets(since),
   );
-  return { ...calendars, sheets };
+  return { ...calendars, sheets, charges };
+}
+
+/** Cron reconcile: creates missing charges, merges duplicates, trashes/flags removed students. */
+async function reconcileAllCharges(since: Date) {
+  if (!chargesConfigured()) return null;
+  const [sessions, ledger] = await Promise.all([querySessions(since), chargesBySession()]);
+  const totals = { created: 0, updated: 0, trashed: 0, flagged: 0, merged: 0 };
+  for (const session of sessions) {
+    const result = await reconcileSession(
+      session,
+      new Date(),
+      ledger.get(session.pageId.replace(/-/g, "").toLowerCase()) ?? [],
+    );
+    for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += result[key];
+  }
+  return totals;
 }
 
 async function syncAllCalendars(since: Date) {

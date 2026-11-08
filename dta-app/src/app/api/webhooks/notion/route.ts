@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { isOwnBot } from "@/lib/notion-charges";
 import { ACTIVE_STUDENTS_TAG } from "@/lib/office-hours-signups";
 import { syncSession } from "@/lib/session-sync";
 
@@ -11,7 +12,17 @@ type NotionWebhookEvent = {
   verification_token?: string;
   type?: string;
   entity?: { id: string; type: string };
+  /** Who made the change; "bot" authors include this integration's own writes. */
+  authors?: { id: string; type: string }[];
 };
+
+/** True when every author is this integration, i.e. the event echoes our own charge write. */
+async function isOwnEcho(event: NotionWebhookEvent): Promise<boolean> {
+  const authors = event.authors ?? [];
+  if (authors.length === 0 || authors.some((a) => a.type !== "bot")) return false;
+  const own = await Promise.all(authors.map((a) => isOwnBot(a.id)));
+  return own.every(Boolean);
+}
 
 function validSignature(body: string, header: string | null, token: string): boolean {
   if (!header) return false;
@@ -50,6 +61,11 @@ export async function POST(req: Request) {
 
   if (!event.type?.startsWith("page.") || event.entity?.type !== "page") {
     return NextResponse.json({ ok: true, ignored: event.type ?? "unknown" });
+  }
+
+  // Our own charge writes come back as events; they were already applied, so stop the loop.
+  if (await isOwnEcho(event)) {
+    return NextResponse.json({ ok: true, ignored: "own-write echo" });
   }
 
   // Cheap to refetch, so any page change refreshes the office hours roster.

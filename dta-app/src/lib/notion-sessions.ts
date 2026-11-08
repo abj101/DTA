@@ -32,6 +32,8 @@ export type Session = {
   timeZone: string | null;
   tutors: string[];
   students: string[];
+  /** Student Database page ID of each student, parallel to `students`. */
+  studentIds: string[];
   /** Session Rate of each student, parallel to `students`. */
   studentRates: (number | null)[];
   meetingType: string | null;
@@ -116,7 +118,7 @@ export function plainText(prop: Property | undefined): string {
   }
 }
 
-type Student = { name: string; rate: number | null };
+type Student = { id: string; name: string; rate: number | null };
 
 function studentInfo(pageId: string, cache: Map<string, Promise<Student>>): Promise<Student> {
   let student = cache.get(pageId);
@@ -124,9 +126,10 @@ function studentInfo(pageId: string, cache: Map<string, Promise<Student>>): Prom
     student = notion()
       .pages.retrieve({ page_id: pageId })
       .then((page) => {
-        if (!isFullPage(page)) return { name: "", rate: null };
+        if (!isFullPage(page)) return { id: pageId, name: "", rate: null };
         const rate = page.properties[SESSION_PROPS.studentRate];
         return {
+          id: pageId,
           name: plainText(Object.values(page.properties).find((p) => p.type === "title")),
           rate: rate?.type === "number" ? rate.number : null,
         };
@@ -167,6 +170,7 @@ export async function toSession(
           ? [tutors.select.name]
           : [],
     students: studentList.map((s) => s.name),
+    studentIds: studentList.map((s) => s.id),
     studentRates: studentList.map((s) => s.rate),
     meetingType: meetingType?.type === "select" ? (meetingType.select?.name ?? null) : null,
     meetingTypeColor: meetingType?.type === "select" ? (meetingType.select?.color ?? null) : null,
