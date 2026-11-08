@@ -17,6 +17,10 @@ export const CHARGE_PROPS = {
   status: "Status",
   note: "Note",
   studentRemoved: "Student Removed",
+  /** Session date (app-managed), so the ledger can be split into month views. */
+  date: "Date",
+  /** Last session Status the app copied onto this charge (hidden; app-managed). */
+  sessionStatusApplied: "Session Status Applied",
 } as const;
 
 export const STATUS_OUTSTANDING = "Outstanding";
@@ -38,6 +42,9 @@ export type Charge = {
   status: string | null;
   note: string;
   studentRemoved: boolean;
+  /** YYYY-MM-DD, or "" when never set. */
+  date: string;
+  sessionStatusApplied: string;
 };
 
 /** The fields the app manages on a charge; everything else belongs to the user. */
@@ -45,6 +52,10 @@ export type ManagedFields = {
   title: string;
   standardRate: number | null;
   studentRemoved: boolean;
+  date: string;
+  /** Payment status; the app only changes it when the session's own Status changes. */
+  status: string | null;
+  sessionStatusApplied: string;
 };
 
 export function dashless(id: string): string {
@@ -105,15 +116,55 @@ export function chargeRate(adjusted: number | null, standard: number | null): nu
   return adjusted ?? standard;
 }
 
+/**
+ * The Status a charge should hold. A change to the session's Status is copied onto every
+ * one of its charges; otherwise the charge keeps its own (possibly individually edited)
+ * Status. A cleared session Status never clears a charge.
+ */
+export function targetStatus(
+  existing: { status: string | null; sessionStatusApplied: string } | null,
+  sessionStatus: string | null,
+): { status: string | null; sessionStatusApplied: string } {
+  const applied = sessionStatus ?? "";
+  if (!existing) return { status: sessionStatus ?? STATUS_OUTSTANDING, sessionStatusApplied: applied };
+  if (applied === existing.sessionStatusApplied) return existing;
+  return { status: sessionStatus ?? existing.status, sessionStatusApplied: applied };
+}
+
 /** The app-managed fields a charge should hold given the live session and student. */
 export function desiredFields(
   existing: Charge | null,
-  input: { title: string; currentRate: number | null; passed: boolean },
+  input: {
+    title: string;
+    currentRate: number | null;
+    passed: boolean;
+    ymd: string;
+    sessionStatus: string | null;
+  },
 ): ManagedFields {
+  const { status, sessionStatusApplied } = targetStatus(
+    existing && { status: existing.status, sessionStatusApplied: existing.sessionStatusApplied },
+    input.sessionStatus,
+  );
   return {
     title: input.title,
     standardRate: targetStandardRate(existing?.standardRate ?? null, input.currentRate, input.passed),
     studentRemoved: false,
+    date: input.ymd,
+    status,
+    sessionStatusApplied,
+  };
+}
+
+/** A removed student's kept charge: everything as stored, plus the Student Removed flag. */
+export function flaggedFields(charge: Charge): ManagedFields {
+  return {
+    title: charge.title,
+    standardRate: charge.standardRate,
+    studentRemoved: true,
+    date: charge.date,
+    status: charge.status,
+    sessionStatusApplied: charge.sessionStatusApplied,
   };
 }
 
@@ -124,6 +175,11 @@ export function diffFields(charge: Charge, desired: ManagedFields): Partial<Mana
   if (charge.standardRate !== desired.standardRate) patch.standardRate = desired.standardRate;
   if (charge.studentRemoved !== desired.studentRemoved) {
     patch.studentRemoved = desired.studentRemoved;
+  }
+  if (desired.date && charge.date !== desired.date) patch.date = desired.date;
+  if (desired.status != null && charge.status !== desired.status) patch.status = desired.status;
+  if (charge.sessionStatusApplied !== desired.sessionStatusApplied) {
+    patch.sessionStatusApplied = desired.sessionStatusApplied;
   }
   return patch;
 }
@@ -208,6 +264,8 @@ export function chargeFromPage(page: {
   const status = p[CHARGE_PROPS.status];
   const note = p[CHARGE_PROPS.note];
   const removed = p[CHARGE_PROPS.studentRemoved];
+  const date = p[CHARGE_PROPS.date];
+  const applied = p[CHARGE_PROPS.sessionStatusApplied];
   return {
     pageId: page.id,
     url: page.url,
@@ -222,6 +280,8 @@ export function chargeFromPage(page: {
     status: status?.type === "select" ? (status.select?.name ?? null) : null,
     note: note?.type === "rich_text" ? richText(note.rich_text) : "",
     studentRemoved: removed?.type === "checkbox" ? removed.checkbox : false,
+    date: date?.type === "date" ? (date.date?.start.slice(0, 10) ?? "") : "",
+    sessionStatusApplied: applied?.type === "rich_text" ? richText(applied.rich_text) : "",
   };
 }
 
@@ -239,6 +299,15 @@ export function managedProperties(fields: Partial<ManagedFields>): PropertyValue
   if (fields.studentRemoved !== undefined) {
     props[CHARGE_PROPS.studentRemoved] = { checkbox: fields.studentRemoved };
   }
+  if (fields.date) props[CHARGE_PROPS.date] = { date: { start: fields.date } };
+  if (fields.status != null) props[CHARGE_PROPS.status] = { select: { name: fields.status } };
+  if (fields.sessionStatusApplied !== undefined) {
+    props[CHARGE_PROPS.sessionStatusApplied] = {
+      rich_text: fields.sessionStatusApplied
+        ? [{ text: { content: fields.sessionStatusApplied } }]
+        : [],
+    };
+  }
   return props;
 }
 
@@ -247,7 +316,6 @@ export function newChargeProperties(args: {
   sessionId: string;
   studentId: string;
   fields: ManagedFields;
-  status: string;
 }): PropertyValues {
   return {
     ...managedProperties(args.fields),
@@ -256,7 +324,6 @@ export function newChargeProperties(args: {
     [CHARGE_PROPS.key]: {
       rich_text: [{ text: { content: chargeKey(args.sessionId, args.studentId) } }],
     },
-    [CHARGE_PROPS.status]: { select: { name: args.status } },
   };
 }
 

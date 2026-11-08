@@ -13,8 +13,10 @@ import {
   mergeUserFields,
   pickSurvivor,
   removalAction,
+  flaggedFields,
   sessionHasPassed,
   targetStandardRate,
+  targetStatus,
 } from "../src/lib/charges.ts";
 
 const TZ = "America/Los_Angeles";
@@ -31,6 +33,8 @@ const charge = (over = {}) => ({
   status: "Outstanding",
   note: "",
   studentRemoved: false,
+  date: "2026-09-10",
+  sessionStatusApplied: "",
   ...over,
 });
 
@@ -59,9 +63,15 @@ assert.equal(sessionHasPassed("2026-09-10T03:00:00Z", now, TZ), true); // Sep 9 
 assert.equal(sessionHasPassed("2026-09-11T01:00:00Z", now, TZ), false); // Sep 10 6pm Pacific
 
 // No-op diff: an up-to-date charge yields no patch, so no write (echoes terminate).
-const input = { title: "Ana — 2026-09-10", currentRate: 60, passed: false };
+const input = {
+  title: "Ana — 2026-09-10",
+  currentRate: 60,
+  passed: false,
+  ymd: "2026-09-10",
+  sessionStatus: null,
+};
 assert.deepEqual(diffFields(charge(), desiredFields(charge(), input)), {});
-// The app never touches user fields: a different Adjusted Rate/Status/Note never appears in a patch.
+// The app never touches Adjusted Rate/Note, nor a Status the session hasn't changed.
 const edited = charge({ adjustedRate: 10, status: "Settled", note: "paid cash" });
 assert.deepEqual(diffFields(edited, desiredFields(edited, input)), {});
 // Future sessions follow a rate change; past ones keep the snapshot.
@@ -85,6 +95,37 @@ assert.deepEqual(
   diffFields(charge({ studentRemoved: true }), desiredFields(charge(), input)),
   { studentRemoved: false },
 );
+// Session Status: a change is copied onto every charge; an individual charge edit sticks
+// until the session's Status changes again; clearing the session Status keeps the charge's.
+assert.deepEqual(targetStatus(null, "Settled"), { status: "Settled", sessionStatusApplied: "Settled" });
+assert.deepEqual(targetStatus(null, null), { status: "Outstanding", sessionStatusApplied: "" });
+const synced = charge({ status: "Outstanding", sessionStatusApplied: "Outstanding" });
+assert.deepEqual(
+  diffFields(synced, desiredFields(synced, { ...input, sessionStatus: "Settled" })),
+  { status: "Settled", sessionStatusApplied: "Settled" },
+);
+const override = charge({ status: "Settled", sessionStatusApplied: "Outstanding" });
+assert.deepEqual(diffFields(override, desiredFields(override, { ...input, sessionStatus: "Outstanding" })), {});
+assert.deepEqual(
+  diffFields(override, desiredFields(override, { ...input, sessionStatus: "N/A" })),
+  { status: "N/A", sessionStatusApplied: "N/A" },
+);
+assert.deepEqual(
+  diffFields(override, desiredFields(override, { ...input, sessionStatus: null })),
+  { sessionStatusApplied: "" },
+);
+// A backfilled charge (status copied, nothing recorded as applied) only records the status.
+const backfilled = charge({ status: "Settled", sessionStatusApplied: "" });
+assert.deepEqual(
+  diffFields(backfilled, desiredFields(backfilled, { ...input, sessionStatus: "Settled" })),
+  { sessionStatusApplied: "Settled" },
+);
+// Date fills in for charges created before it existed; flagging changes only the flag.
+assert.deepEqual(diffFields(charge({ date: "" }), desiredFields(charge({ date: "" }), input)), {
+  date: "2026-09-10",
+});
+assert.deepEqual(diffFields(edited, flaggedFields(edited)), { studentRemoved: true });
+
 // Patch properties contain only managed fields.
 assert.deepEqual(Object.keys(managedProperties({ standardRate: 80 })), [CHARGE_PROPS.standardRate]);
 assert.ok(!(CHARGE_PROPS.adjustedRate in managedProperties({ title: "t", standardRate: 1, studentRemoved: true })));
@@ -141,6 +182,8 @@ assert.deepEqual(chargeFromPage(page), {
   status: "Settled",
   note: "",
   studentRemoved: true,
+  date: "",
+  sessionStatusApplied: "",
 });
 assert.equal(chargeFromPage({ ...page, properties: {} }), null);
 

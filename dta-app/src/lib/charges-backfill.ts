@@ -187,8 +187,14 @@ export async function applyBackfill(
       properties: newChargeProperties({
         sessionId: c.session.pageId,
         studentId: c.studentId,
-        fields: { title: chargeTitle(c.student, c.ymd), standardRate: c.seed, studentRemoved: false },
-        status: c.status,
+        fields: {
+          title: chargeTitle(c.student, c.ymd),
+          standardRate: c.seed,
+          studentRemoved: false,
+          date: c.ymd,
+          status: c.status,
+          sessionStatusApplied: c.session.status ?? "",
+        },
       }) as never,
     });
     onProgress?.(++done, plan.creates.length);

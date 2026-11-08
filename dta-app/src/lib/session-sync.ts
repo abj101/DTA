@@ -5,6 +5,7 @@ import {
   syncSessionSheet,
 } from "@/lib/accounting-sheet";
 import { chargeFromPage } from "@/lib/charges";
+import { chargeMonths, ensureChargeColumns, ensureChargeViews } from "@/lib/charges-views";
 import { deleteEvent, listNotionEvents, upsertEvent, type CalendarEvent } from "@/lib/gcal";
 import {
   chargesBySession,
@@ -201,11 +202,25 @@ function goneSession(pageId: string): Session {
   };
 }
 
+/** Month tabs are a convenience: a failure is logged and reported, never fatal to the sync. */
+async function safeViews(months: () => string[] | Promise<string[]>) {
+  try {
+    return await ensureChargeViews(await months());
+  } catch (error) {
+    console.error("[charges] month tabs update failed", error);
+    return { error: String(error) };
+  }
+}
+
 /** Reconciles a session's charges (when the ledger is configured), then rebuilds its sheet months. */
 async function syncChargesAndSheet(pageId: string, session: Session | null): Promise<string[]> {
-  const reconciled = chargesConfigured()
-    ? await reconcileSession(session ?? goneSession(pageId))
-    : null;
+  let reconciled: Awaited<ReturnType<typeof reconcileSession>> | null = null;
+  if (chargesConfigured()) {
+    await ensureChargeColumns();
+    reconciled = await reconcileSession(session ?? goneSession(pageId));
+    // A charge in a month with no tab yet gets one (a no-op when the tab exists).
+    if (reconciled.created > 0 && session?.start) await safeViews(() => [sessionMonth(session)]);
+  }
   return syncSessionSheet(pageId, session, reconciled?.chargeIds ?? []);
 }
 
@@ -253,16 +268,20 @@ export async function syncSession(pageId: string): Promise<SyncResult & { sheets
 export async function syncAllSessions() {
   const since = new Date(Date.now() - RESYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const charges = await reconcileAllCharges(since);
+  const views = chargesConfigured() ? await safeViews(chargeMonths) : null;
   const [calendars, sheets] = await both(
     syncAllCalendars(since),
     syncAllSessionSheets(since),
   );
-  return { ...calendars, sheets, charges };
+  return { ...calendars, sheets, charges, views };
 }
 
 /** Cron reconcile: creates missing charges, merges duplicates, trashes/flags removed students. */
-async function reconcileAllCharges(since: Date) {
+async function reconcileAllCharges(lookback: Date) {
   if (!chargesConfigured()) return null;
+  // Columns added to an existing ledger are blank on every charge, so fill all sessions once.
+  const added = await ensureChargeColumns();
+  const since = added.length > 0 ? new Date("2000-01-01") : lookback;
   const [sessions, ledger] = await Promise.all([querySessions(since), chargesBySession()]);
   const totals = { created: 0, updated: 0, trashed: 0, flagged: 0, merged: 0 };
   for (const session of sessions) {
@@ -273,7 +292,7 @@ async function reconcileAllCharges(since: Date) {
     );
     for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += result[key];
   }
-  return totals;
+  return { ...totals, columnsAdded: added };
 }
 
 async function syncAllCalendars(since: Date) {

@@ -3,7 +3,6 @@ import { isFullPage, iteratePaginatedAPI, type PageObjectResponse } from "@notio
 import { isAccountable } from "@/lib/accounting-rows";
 import {
   CHARGE_PROPS,
-  STATUS_OUTSTANDING,
   chargeFromPage,
   chargeTitle,
   dashless,
@@ -17,7 +16,7 @@ import {
   sessionHasPassed,
   sessionYmdIn,
   type Charge,
-  type ManagedFields,
+  flaggedFields,
 } from "@/lib/charges";
 import {
   getSessionPage,
@@ -196,6 +195,8 @@ export async function reconcileSession(
         title: chargeTitle(session.students[index], ymd),
         currentRate: session.studentRates[index] ?? null,
         passed,
+        ymd,
+        sessionStatus: session.status,
       });
       if (!charge) {
         const created = await notion().pages.create({
@@ -204,7 +205,6 @@ export async function reconcileSession(
             sessionId: session.pageId,
             studentId,
             fields,
-            status: session.status ?? STATUS_OUTSTANDING,
           }) as never,
         });
         result.chargeIds.push(created.id);
@@ -227,12 +227,7 @@ export async function reconcileSession(
       await trash(keep.pageId);
       result.trashed++;
     } else {
-      const flagged: ManagedFields = {
-        title: keep.title,
-        standardRate: keep.standardRate,
-        studentRemoved: true,
-      };
-      const patch = diffFields(keep, flagged);
+      const patch = diffFields(keep, flaggedFields(keep));
       if (Object.keys(patch).length > 0) {
         await update(keep.pageId, managedProperties(patch));
         result.flagged++;
@@ -274,12 +269,15 @@ export async function refreshStudentCharges(
     const index = session.studentIds.findIndex((id) => dashless(id) === dashless(studentId));
     if (index < 0) continue;
     touched.push(session);
+    const ymd = sessionYmdIn(session.start!, DTA_SCHEDULE_TZ);
     const patch = diffFields(
       charge,
       desiredFields(charge, {
-        title: chargeTitle(session.students[index], sessionYmdIn(session.start!, DTA_SCHEDULE_TZ)),
+        title: chargeTitle(session.students[index], ymd),
         currentRate: session.studentRates[index] ?? null,
         passed: sessionHasPassed(session.start!, now, DTA_SCHEDULE_TZ),
+        ymd,
+        sessionStatus: session.status,
       }),
     );
     if (Object.keys(patch).length > 0) await update(charge.pageId, managedProperties(patch));

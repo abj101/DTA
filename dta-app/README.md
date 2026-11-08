@@ -51,7 +51,9 @@ In Notion create a database named **Session Charges** (put it next to the Sessio
 | Key | Text | app (`<sessionId>:<studentId>`, dashless; dedupe key) |
 | Standard Rate | Number | app (snapshot of the student's Session Rate) |
 | Adjusted Rate | Number | **you**, optional; the app never writes it |
-| Status | Select with options `Settled`, `Outstanding`, `N/A` | you (new charges copy the session's Status, else Outstanding) |
+| Status | Select with options `Settled`, `Outstanding`, `N/A` | you, or the session: changing a session's Status copies it to all its charges |
+| Date | Date | app (the session's day; drives the month tabs) |
+| Session Status Applied | Text (hidden) | app (last session Status copied, so individual edits stick) |
 | Note | Text | you |
 | Student Removed | Checkbox | app |
 
@@ -60,6 +62,8 @@ Then share the database with the Notion integration (`•••` > Connections),
 ### Rules
 
 - Amount = Adjusted Rate if set, else Standard Rate; Status `N/A` means $0.
+- Setting a session's Status in the Session Calendar sets it on every charge of that session. A Status set on one charge stays until the session's Status changes again; clearing the session's Status leaves charges alone.
+- The table has an **All** tab plus one tab per month, added automatically when a month gets its first charge. Columns: Student, Status, Standard Rate, Adjusted Rate, then the rest.
 - Standard Rate follows the student's current Session Rate while the session is in the future, and is frozen once the session date has passed. Clear it to re-snapshot the current rate on the next sync.
 - Removing a student from a session trashes their charge if untouched (Outstanding, no Adjusted Rate, no Note); otherwise the charge stays with **Student Removed** checked.
 - Duplicate charges for one session x student are merged by the daily cron, keeping the one with your edits.

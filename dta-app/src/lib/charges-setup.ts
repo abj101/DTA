@@ -72,7 +72,9 @@ export async function createChargesDatabase(parentPageId?: string): Promise<Crea
         [CHARGE_PROPS.adjustedRate]: { number: { format: "dollar" } },
         [CHARGE_PROPS.note]: { rich_text: {} },
         [CHARGE_PROPS.studentRemoved]: { checkbox: {} },
+        [CHARGE_PROPS.date]: { date: {} },
         [CHARGE_PROPS.key]: { rich_text: {} },
+        [CHARGE_PROPS.sessionStatusApplied]: { rich_text: {} },
       },
     },
   });
