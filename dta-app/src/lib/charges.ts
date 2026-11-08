@@ -319,7 +319,7 @@ export function statusColumnName(index: number): string {
 /** Hidden session column recording what the app last synced, by position. */
 export const STATUS_SYNC_PROP = "Status Sync";
 
-/** Session column the app writes with a summary of its students' statuses. */
+/** Former session summary column; the setup migration removes it (the summary is now computed). */
 export const PAYMENT_PROP = "Payment";
 
 export type SyncEntry = { studentId: string; status: string };

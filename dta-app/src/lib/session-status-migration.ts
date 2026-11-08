@@ -8,8 +8,8 @@ import { ensureSessionStatusColumns, resetSessionColumnsCache } from "./session-
 
 /*
  * One-time setup for two-way status columns: moves every "N/A" value to "Free", adds
- * "Status 2"..., the hidden "Status Sync" and the app-written "Payment" columns to the Session
- * Calendar, and removes the charges' unused internal "Session Status Applied" column. Safe to
+ * "Status 2"... and the hidden "Status Sync" columns to the Session Calendar, removes the old
+ * "Payment" summary column, and removes the charges' unused internal "Session Status Applied" column. Safe to
  * re-run: finished steps are skipped.
  */
 
@@ -20,8 +20,8 @@ type Props = Record<string, { id: string; type: string; select?: { options?: Opt
 export type StatusMigrationReport = {
   /** Select columns that still have an "N/A" option, with how it will be renamed. */
   renameFree: string[];
-  /** A leftover "Payment" formula column (Notion's API can't build the summary as one). */
-  paymentIsFormula: boolean;
+  /** A leftover "Payment" column (the summary is now computed from the status columns). */
+  hasPaymentColumn: boolean;
   chargesHaveApplied: boolean;
   maxStudents: number;
   /**
@@ -68,7 +68,7 @@ export async function planStatusMigration(): Promise<StatusMigrationReport> {
       ...selectsWithLegacyFree(sessionProps, statusColumnNames(sessionProps)).map((n) => `Session Calendar · ${n}`),
       ...selectsWithLegacyFree(chargeProps, [CHARGE_PROPS.status]).map((n) => `Session Charges · ${n}`),
     ],
-    paymentIsFormula: sessionProps[PAYMENT_PROP]?.type === "formula",
+    hasPaymentColumn: PAYMENT_PROP in sessionProps,
     chargesHaveApplied: OLD_CHARGE_APPLIED in chargeProps,
     maxStudents: 0,
     mismatches: [],
@@ -174,15 +174,15 @@ export async function applyStatusMigration(): Promise<{ done: string[]; report: 
   const chargesId = await chargesSource();
   const done: string[] = [];
 
-  // A formula Payment can't be turned into the app's text column, so it's replaced.
-  if (report.paymentIsFormula) {
+  // Payment is no longer stored on sessions; the calendar computes it from the status columns.
+  if (report.hasPaymentColumn) {
     await notion().dataSources.update({
       data_source_id: sessionsId,
       properties: { [PAYMENT_PROP]: null },
     } as never);
-    done.push(`removed ${PAYMENT_PROP} formula`);
+    done.push(`removed ${PAYMENT_PROP} column`);
   }
-  // Columns first (Payment text, Status 2...), so a new Status 2 that copied N/A is converted too.
+  // Columns first (Status 2...), so a new Status 2 that copied N/A is converted too.
   resetSessionColumnsCache();
   const added = await ensureSessionStatusColumns(report.maxStudents);
   if (added.length > 0) done.push(`added session columns: ${added.join(", ")}`);

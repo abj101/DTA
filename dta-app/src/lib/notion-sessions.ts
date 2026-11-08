@@ -7,7 +7,7 @@ import {
   type PageObjectResponse,
 } from "@notionhq/client";
 
-import { STATUS_SYNC_PROP, statusColumnName } from "./charges.ts";
+import { STATUS_SYNC_PROP, paymentSummary, statusColumnName } from "./charges.ts";
 
 /** Property names in the Notion "Session Calendar" data source. */
 export const SESSION_PROPS = {
@@ -16,12 +16,10 @@ export const SESSION_PROPS = {
   tutors: "Primary Tutor",
   students: "Student",
   meetingType: "Meeting Type",
-  /** App-written summary of the students' statuses (see paymentSummary). */
-  payment: "Payment",
   /** Number property on each related Student Database page. */
   studentRate: "Session Rate",
-  /** Rendered into the event description, in this order, when non-empty. */
-  extra: ["Subject", "Meeting Type", "Topics", "Payment"],
+  /** Rendered into the event description, in this order, when non-empty (then Payment). */
+  extra: ["Subject", "Meeting Type", "Topics"],
 } as const;
 
 export type Session = {
@@ -42,7 +40,7 @@ export type Session = {
   meetingType: string | null;
   /** Notion option color of the Meeting Type select (e.g. "green"), if set. */
   meetingTypeColor: string | null;
-  /** Summary of the students' statuses, written by the app. */
+  /** Summary of the students' status columns (see paymentSummary); null if any is blank. */
   payment: string | null;
   /** Each student's status column ("Status", "Status 2", ...) as found on the page. */
   statusColumns: (string | null)[];
@@ -176,6 +174,11 @@ export async function toSession(
       ? await Promise.all(students.relation.map((r) => studentInfo(r.id, studentCache)))
       : []
   ).filter((s) => s.name);
+  const columns = statusColumns(props);
+  const payment = paymentFromColumns(
+    studentList.map((s) => s.name),
+    columns,
+  );
 
   return {
     pageId: page.id,
@@ -196,13 +199,21 @@ export async function toSession(
     studentRates: studentList.map((s) => s.rate),
     meetingType: meetingType?.type === "select" ? (meetingType.select?.name ?? null) : null,
     meetingTypeColor: meetingType?.type === "select" ? (meetingType.select?.color ?? null) : null,
-    payment: plainText(props[SESSION_PROPS.payment]) || null,
-    statusColumns: statusColumns(props),
+    payment,
+    statusColumns: columns,
     statusSync: plainText(props[STATUS_SYNC_PROP]),
-    details: SESSION_PROPS.extra
-      .map((label) => ({ label, value: plainText(props[label]) }))
-      .filter((d) => d.value),
+    details: [
+      ...SESSION_PROPS.extra.map((label) => ({ label, value: plainText(props[label]) })),
+      { label: "Payment", value: payment ?? "" },
+    ].filter((d) => d.value),
   };
+}
+
+/** One status when every student shares it, else each student's; null if a column is blank. */
+function paymentFromColumns(students: string[], columns: (string | null)[]): string | null {
+  const statuses = students.map((_, i) => columns[i] ?? null);
+  if (statuses.some((s) => s === null)) return null;
+  return paymentSummary(students, statuses as string[]) || null;
 }
 
 /** Returns null when the page is gone or no longer shared with the integration. */

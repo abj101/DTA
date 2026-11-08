@@ -204,7 +204,7 @@ function goneSession(pageId: string): Session {
   };
 }
 
-/** Re-reads a session after its charges were synced, so formulas like Payment are current. */
+/** Re-reads a session after its charges were synced, so its status columns (and the Payment they sum up) are current. */
 async function freshSession(pageId: string, session: Session | null): Promise<Session | null> {
   if (!session || !chargesConfigured()) return session;
   const page = await getSessionPage(pageId);
@@ -252,7 +252,7 @@ export async function syncSession(pageId: string): Promise<SyncResult & { sheets
     const sheets = session
       ? await syncChargesAndSheet(charge.sessionId, session)
       : await syncSessionSheet(charge.sessionId, session, [charge.pageId]);
-    // The session's Payment summary is computed from its charges, so refresh its event too.
+    // The charge's status reaches the session's columns, which the event's Payment shows.
     await syncCalendars(charge.sessionId, await freshSession(charge.sessionId, session));
     return { pageId, action: "synced", reason: "charge page", sheets };
   }
