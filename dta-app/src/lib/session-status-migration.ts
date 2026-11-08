@@ -117,27 +117,98 @@ export async function planStatusMigration(): Promise<StatusMigrationReport> {
   return report;
 }
 
-/** Renames N/A to Free in a select, keeping every option (by id) and so every value. */
-async function renameLegacyFree(dataSourceId: string, all: Props, names: string[]) {
-  const properties: Record<string, unknown> = {};
+/**
+ * Moves a select from N/A to Free: adds a Free option, rewrites every N/A value to Free, then
+ * drops the N/A option. (Notion's API doesn't rename options in place.) Returns pages changed.
+ */
+async function replaceLegacyFree(dataSourceId: string, all: Props, names: string[]): Promise<number> {
+  if (names.length === 0) return 0;
+  const withFree: Record<string, unknown> = {};
   for (const name of names) {
     const options = all[name]?.select?.options ?? [];
-    if (options.some((o) => o.name === FREE_STATUS)) {
-      throw new Error(`${name} already has both "${FREE_STATUS}" and "${LEGACY_FREE_STATUS}" options`);
-    }
-    properties[name] = {
+    const legacy = options.find((o) => o.name === LEGACY_FREE_STATUS);
+    withFree[name] = {
       select: {
-        options: options.map((o) => ({
-          id: o.id,
-          name: o.name === LEGACY_FREE_STATUS ? FREE_STATUS : o.name,
-          color: o.color,
-        })),
+        options: [
+          ...options.map((o) => ({ id: o.id, name: o.name, color: o.color })),
+          ...(options.some((o) => o.name === FREE_STATUS)
+            ? []
+            : [{ name: FREE_STATUS, color: legacy?.color ?? "gray" }]),
+        ],
       },
     };
   }
-  if (Object.keys(properties).length > 0) {
-    await notion().dataSources.update({ data_source_id: dataSourceId, properties: properties as never });
+  await notion().dataSources.update({ data_source_id: dataSourceId, properties: withFree as never });
+
+  const legacyPages = async (name: string) => {
+    const ids: string[] = [];
+    for await (const page of iteratePaginatedAPI(notion().dataSources.query, {
+      data_source_id: dataSourceId,
+      filter: { property: name, select: { equals: LEGACY_FREE_STATUS } },
+    })) {
+      ids.push(page.id);
+    }
+    return ids;
+  };
+  let changed = 0;
+  for (const name of names) {
+    // Collected first: editing while paging through a filtered query can skip pages.
+    for (const page_id of await legacyPages(name)) {
+      await notion().pages.update({
+        page_id,
+        properties: { [name]: { select: { name: FREE_STATUS } } },
+      } as never);
+      changed++;
+    }
+    const left = await legacyPages(name);
+    if (left.length > 0) {
+      throw new Error(`${left.length} page(s) still have ${name} = ${LEGACY_FREE_STATUS}; N/A option kept`);
+    }
   }
+
+  const fresh = await props(dataSourceId);
+  const withoutLegacy: Record<string, unknown> = {};
+  for (const name of names) {
+    withoutLegacy[name] = {
+      select: {
+        options: (fresh[name]?.select?.options ?? [])
+          .filter((o) => o.name !== LEGACY_FREE_STATUS)
+          .map((o) => ({ id: o.id, name: o.name, color: o.color })),
+      },
+    };
+  }
+  await notion().dataSources.update({ data_source_id: dataSourceId, properties: withoutLegacy as never });
+  return changed;
+}
+
+/** Formula variants for Payment, most capable first; the first Notion accepts is kept. */
+export const PAYMENT_FORMULAS = [
+  PAYMENT_FORMULA,
+  `let(
+  statuses, prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.status}").format()),
+  if(statuses.empty(), "",
+    if(statuses.unique().length() == 1, statuses.first(),
+      prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.title}").split(" — ").first() + ": " + current.prop("${CHARGE_PROPS.status}").format()).join(" · ")))
+)`,
+  `if(prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.status}").format()).unique().length() <= 1,
+  prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.status}").format()).first(),
+  prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.title}").format().split(" — ").first() + ": " + current.prop("${CHARGE_PROPS.status}").format()).join(" · "))`,
+];
+
+async function addPaymentFormula(sessionsId: string): Promise<{ variant: number; errors: string[] }> {
+  const errors: string[] = [];
+  for (const [variant, expression] of PAYMENT_FORMULAS.entries()) {
+    try {
+      await notion().dataSources.update({
+        data_source_id: sessionsId,
+        properties: { [PAYMENT_PROP]: { formula: { expression } } },
+      } as never);
+      return { variant, errors };
+    } catch (error) {
+      errors.push(`variant ${variant}: ${String(error)}`);
+    }
+  }
+  throw new Error(`No Payment formula was accepted: ${errors.join(" | ")}`);
 }
 
 /** Applies the schema changes; the caller then runs a full reconcile to fill the columns. */
@@ -147,23 +218,29 @@ export async function applyStatusMigration(): Promise<{ done: string[]; report: 
   const chargesId = await chargesSource();
   const done: string[] = [];
 
-  const sessionProps = await props(sessionsId);
-  const sessionRenames = selectsWithLegacyFree(sessionProps, statusColumnNames(sessionProps));
-  await renameLegacyFree(sessionsId, sessionProps, sessionRenames);
-  const chargeProps = await props(chargesId);
-  const chargeRenames = selectsWithLegacyFree(chargeProps, [CHARGE_PROPS.status]);
-  await renameLegacyFree(chargesId, chargeProps, chargeRenames);
-  if (sessionRenames.length + chargeRenames.length > 0) done.push(`renamed N/A to Free: ${report.renameFree.join(", ")}`);
-
+  // Columns first, so a new Status 2 that copied the N/A option is converted too.
   const added = await ensureSessionStatusColumns(report.maxStudents);
   if (added.length > 0) done.push(`added session columns: ${added.join(", ")}`);
 
+  const sessionProps = await props(sessionsId);
+  const sessionMoved = await replaceLegacyFree(
+    sessionsId,
+    sessionProps,
+    selectsWithLegacyFree(sessionProps, statusColumnNames(sessionProps)),
+  );
+  const chargeProps = await props(chargesId);
+  const chargeMoved = await replaceLegacyFree(
+    chargesId,
+    chargeProps,
+    selectsWithLegacyFree(chargeProps, [CHARGE_PROPS.status]),
+  );
+  if (report.renameFree.length > 0) {
+    done.push(`N/A -> Free on ${sessionMoved} session and ${chargeMoved} charge value(s): ${report.renameFree.join(", ")}`);
+  }
+
   if (!report.sessionHasPayment) {
-    await notion().dataSources.update({
-      data_source_id: sessionsId,
-      properties: { [PAYMENT_PROP]: { formula: { expression: PAYMENT_FORMULA } } },
-    } as never);
-    done.push(`added ${PAYMENT_PROP}`);
+    const { variant, errors } = await addPaymentFormula(sessionsId);
+    done.push(`added ${PAYMENT_PROP} (formula variant ${variant})`, ...errors);
   }
   if (report.chargesHaveApplied) {
     await notion().dataSources.update({
