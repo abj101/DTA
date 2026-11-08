@@ -7,6 +7,8 @@ import {
   type PageObjectResponse,
 } from "@notionhq/client";
 
+import { STATUS_SYNC_PROP, statusColumnName } from "./charges.ts";
+
 /** Property names in the Notion "Session Calendar" data source. */
 export const SESSION_PROPS = {
   title: "Session",
@@ -42,6 +44,10 @@ export type Session = {
   meetingTypeColor: string | null;
   /** Payment summary of the session's charges, from the "Payment" formula. */
   payment: string | null;
+  /** Each student's status column ("Status", "Status 2", ...) as found on the page. */
+  statusColumns: (string | null)[];
+  /** Hidden record of what the app last synced into those columns. */
+  statusSync: string;
   details: { label: string; value: string }[];
 };
 
@@ -147,6 +153,14 @@ function studentInfo(pageId: string, cache: Map<string, Promise<Student>>): Prom
   return student;
 }
 
+function statusColumns(props: PageObjectResponse["properties"]): (string | null)[] {
+  const values: (string | null)[] = [];
+  for (let i = 0; statusColumnName(i) in props; i++) {
+    values.push(plainText(props[statusColumnName(i)]) || null);
+  }
+  return values;
+}
+
 export async function toSession(
   page: PageObjectResponse,
   studentCache: Map<string, Promise<Student>> = new Map(),
@@ -183,6 +197,8 @@ export async function toSession(
     meetingType: meetingType?.type === "select" ? (meetingType.select?.name ?? null) : null,
     meetingTypeColor: meetingType?.type === "select" ? (meetingType.select?.color ?? null) : null,
     payment: plainText(props[SESSION_PROPS.payment]) || null,
+    statusColumns: statusColumns(props),
+    statusSync: plainText(props[STATUS_SYNC_PROP]),
     details: SESSION_PROPS.extra
       .map((label) => ({ label, value: plainText(props[label]) }))
       .filter((d) => d.value),

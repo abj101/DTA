@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { applyBackfill, ledgerCounts, planBackfill } from "@/lib/charges-backfill";
+import { reconcileAllCharges } from "@/lib/session-sync";
 import { applyStatusMigration, planStatusMigration } from "@/lib/session-status-migration";
 import { accessiblePages, createChargesDatabase, makeChargesInline } from "@/lib/charges-setup";
 
@@ -84,7 +85,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...(await createChargesDatabase(parent)) });
     }
     if (action === "status-migration") {
-      return NextResponse.json({ ok: true, ...(await applyStatusMigration()) });
+      const migration = await applyStatusMigration();
+      // Fill every billed session's status columns from its charges (all dates, once).
+      const reconciled = await reconcileAllCharges(new Date("2000-01-01"));
+      return NextResponse.json({ ok: true, ...migration, reconciled });
     }
     if (action === "inline") {
       return NextResponse.json({ ok: true, ...(await makeChargesInline()) });

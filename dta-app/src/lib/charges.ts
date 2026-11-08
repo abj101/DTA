@@ -299,9 +299,93 @@ export function backfillSeed(
   sheetAmount: number | null,
   currentRate: number | null,
 ): { seed: number | null; mismatch: boolean } {
-  if (status === "N/A") return { seed: currentRate, mismatch: false };
+  if (status === "Free" || status === "N/A") return { seed: currentRate, mismatch: false };
   return {
     seed: sheetAmount ?? currentRate,
     mismatch: sheetAmount != null && currentRate != null && sheetAmount !== currentRate,
   };
+}
+
+/* ---- Session status columns <-> charges (two-way) ---- */
+
+/**
+ * Session Calendar columns holding each student's status, by the student's position in the
+ * session's Student list: "Status" (1st), "Status 2" (2nd), ...
+ */
+export function statusColumnName(index: number): string {
+  return index === 0 ? "Status" : `Status ${index + 1}`;
+}
+
+/** Hidden session column recording what the app last synced, by position. */
+export const STATUS_SYNC_PROP = "Status Sync";
+
+export type SyncEntry = { studentId: string; status: string };
+
+/** "id=Settled;id=Outstanding" -> entries; unreadable text -> [] (treated as never synced). */
+export function parseStatusSync(text: string): SyncEntry[] {
+  if (!text.trim()) return [];
+  return text.split(";").flatMap((part) => {
+    const at = part.indexOf("=");
+    return at > 0 ? [{ studentId: part.slice(0, at).trim(), status: part.slice(at + 1).trim() }] : [];
+  });
+}
+
+export function formatStatusSync(entries: SyncEntry[]): string {
+  return entries.map((e) => `${dashless(e.studentId)}=${e.status}`).join(";");
+}
+
+export type StatusMerge = {
+  /** Final status per student (by position). */
+  statuses: string[];
+  /** Positions whose charge needs this status written (or created with it). */
+  chargeWrites: number[];
+  /** Desired value of every status column; extra columns beyond the students are cleared. */
+  columns: (string | null)[];
+  sync: string;
+};
+
+/**
+ * Three-way merge of a session's status columns and its charges against what was last synced.
+ * - Column changed since the last sync -> the charge takes it (you edited the session).
+ * - Otherwise a charge changed -> the column takes it (you edited the charge).
+ * - A position never synced, or now holding a different student (the Student list changed),
+ *   takes the charge's status, so a column can't be applied to the wrong student.
+ * - A new charge starts with its column's value when that column wasn't another student's,
+ *   else Outstanding. A cleared column is refilled from the charge.
+ * `charges[i]` is undefined when student i has no charge yet.
+ */
+export function mergeSessionStatuses(input: {
+  studentIds: string[];
+  columns: (string | null)[];
+  charges: (string | null | undefined)[];
+  sync: SyncEntry[];
+}): StatusMerge {
+  const statuses: string[] = [];
+  const chargeWrites: number[] = [];
+  input.studentIds.forEach((id, i) => {
+    const student = dashless(id);
+    const synced = input.sync[i];
+    const samePosition = synced !== undefined && dashless(synced.studentId) === student;
+    const column = input.columns[i] || null;
+    const charge = input.charges[i];
+    let status: string;
+    if (charge === undefined) {
+      status = (synced === undefined || samePosition ? column : null) ?? STATUS_OUTSTANDING;
+      chargeWrites.push(i);
+    } else if (!samePosition) {
+      status = charge ?? (synced === undefined ? column : null) ?? STATUS_OUTSTANDING;
+    } else if (column !== null && column !== synced.status) {
+      status = column;
+    } else {
+      status = charge ?? column ?? STATUS_OUTSTANDING;
+    }
+    if (charge !== undefined && charge !== status) chargeWrites.push(i);
+    statuses.push(status);
+  });
+  const width = Math.max(input.columns.length, input.studentIds.length);
+  const columns = Array.from({ length: width }, (_, i) => statuses[i] ?? null);
+  const sync = formatStatusSync(
+    input.studentIds.map((studentId, i) => ({ studentId, status: statuses[i] })),
+  );
+  return { statuses, chargeWrites, columns, sync };
 }

@@ -2,7 +2,13 @@ import type { Charge } from "./charges";
 import type { Session } from "./notion-sessions";
 
 /** Notion Status value for free sessions; they are listed with a $0 amount. */
-export const FREE_STATUS = "N/A";
+export const FREE_STATUS = "Free";
+/** The old name of Free, still read as free in case any value was not renamed. */
+export const LEGACY_FREE_STATUS = "N/A";
+
+export function isFreeStatus(status: string | null | undefined): boolean {
+  return status === FREE_STATUS || status === LEGACY_FREE_STATUS;
+}
 
 /** One accounting row: a session paired with a single one of its students. */
 export type AccountingRow = {
@@ -81,7 +87,7 @@ function chargeRow(session: Session, student: string, charge: Charge): Accountin
 
 /** A row's amount: free (N/A) rows are $0, otherwise the rate (null = blank). */
 export function rowAmount({ status, rate }: AccountingRow): number | null {
-  return status === FREE_STATUS ? 0 : rate;
+  return isFreeStatus(status) ? 0 : rate;
 }
 
 /** Only sessions of this Meeting Type are accounted (sheet rows and charges). */

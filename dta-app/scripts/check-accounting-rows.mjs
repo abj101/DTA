@@ -18,6 +18,8 @@ const session = (over = {}) => ({
   meetingType: "Session",
   meetingTypeColor: null,
   payment: null,
+  statusColumns: [],
+  statusSync: "",
   details: [],
   ...over,
 });

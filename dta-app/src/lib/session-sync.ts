@@ -198,8 +198,17 @@ function goneSession(pageId: string): Session {
     meetingType: null,
     meetingTypeColor: null,
     payment: null,
+    statusColumns: [],
+    statusSync: "",
     details: [],
   };
+}
+
+/** Re-reads a session after its charges were synced, so formulas like Payment are current. */
+async function freshSession(pageId: string, session: Session | null): Promise<Session | null> {
+  if (!session || !chargesConfigured()) return session;
+  const page = await getSessionPage(pageId);
+  return page ? toSession(page) : null;
 }
 
 /** Month tabs are a convenience: a failure is logged and reported, never fatal to the sync. */
@@ -238,15 +247,13 @@ export async function syncSession(pageId: string): Promise<SyncResult & { sheets
     if (!charge) return { pageId, action: "skipped", reason: "incomplete charge" };
     const sessionPage = await getSessionPage(charge.sessionId);
     const session = sessionPage ? await toSession(sessionPage) : null;
-    // A cleared Standard Rate (re-snapshot) or a trashed charge (recreate) needs a reconcile.
-    const needsReconcile = !!session && (charge.standardRate == null || page.in_trash);
-    // The session's Payment summary is computed from its charges, so its calendar event changes too.
-    const [, sheets] = await both(
-      syncCalendars(charge.sessionId, session),
-      needsReconcile
-        ? syncChargesAndSheet(charge.sessionId, session)
-        : syncSessionSheet(charge.sessionId, session, [charge.pageId]),
-    );
+    // Reconcile so the charge's Status reaches the session's status column (and a cleared
+    // Standard Rate re-snapshots, a trashed charge is recreated).
+    const sheets = session
+      ? await syncChargesAndSheet(charge.sessionId, session)
+      : await syncSessionSheet(charge.sessionId, session, [charge.pageId]);
+    // The session's Payment summary is computed from its charges, so refresh its event too.
+    await syncCalendars(charge.sessionId, await freshSession(charge.sessionId, session));
     return { pageId, action: "synced", reason: "charge page", sheets };
   }
 
@@ -261,10 +268,10 @@ export async function syncSession(pageId: string): Promise<SyncResult & { sheets
     return { pageId, action: "skipped", reason: "not a tracked database" };
   }
   const session = page ? await toSession(page) : null;
-  const [calendar, sheets] = await both(
-    syncCalendars(pageId, session),
-    syncChargesAndSheet(pageId, session),
-  );
+  // Charges first: a status column edit changes the charges, and with them the Payment
+  // summary the calendar event shows.
+  const sheets = await syncChargesAndSheet(pageId, session);
+  const calendar = await syncCalendars(pageId, await freshSession(pageId, session));
   return { ...calendar, sheets };
 }
 
@@ -281,20 +288,23 @@ export async function syncAllSessions() {
 }
 
 /** Cron reconcile: creates missing charges, merges duplicates, trashes/flags removed students. */
-async function reconcileAllCharges(lookback: Date) {
+export async function reconcileAllCharges(lookback: Date) {
   if (!chargesConfigured()) return null;
   // Columns added to an existing ledger are blank on every charge, so fill all sessions once.
   const added = await ensureChargeColumns();
   const since = added.length > 0 ? new Date("2000-01-01") : lookback;
   const [sessions, ledger] = await Promise.all([querySessions(since), chargesBySession()]);
-  const totals = { created: 0, updated: 0, trashed: 0, flagged: 0, merged: 0 };
+  const totals = { created: 0, updated: 0, trashed: 0, flagged: 0, merged: 0, sessionsUpdated: 0 };
   for (const session of sessions) {
     const result = await reconcileSession(
       session,
       new Date(),
       ledger.get(session.pageId.replace(/-/g, "").toLowerCase()) ?? [],
     );
-    for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += result[key];
+    for (const key of ["created", "updated", "trashed", "flagged", "merged"] as const) {
+      totals[key] += result[key];
+    }
+    if (result.sessionUpdated) totals.sessionsUpdated++;
   }
   return { ...totals, columnsAdded: added };
 }

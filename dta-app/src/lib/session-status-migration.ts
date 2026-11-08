@@ -1,23 +1,25 @@
 import { isFullPage, iteratePaginatedAPI } from "@notionhq/client";
 
-import { isAccountable } from "./accounting-rows.ts";
-import { CHARGE_PROPS } from "./charges.ts";
+import { FREE_STATUS, LEGACY_FREE_STATUS, isAccountable } from "./accounting-rows.ts";
+import { CHARGE_PROPS, dashless, statusColumnName } from "./charges.ts";
 import { SESSION_CHARGES_BACKLINK } from "./charges-setup.ts";
-import { notion, plainText, resolveDataSourceId, sessionsDataSourceId, toSession } from "./notion-sessions.ts";
+import { chargesBySession } from "./notion-charges.ts";
+import { notion, resolveDataSourceId, sessionsDataSourceId, toSession } from "./notion-sessions.ts";
+import { ensureSessionStatusColumns } from "./session-status-columns.ts";
 
 /*
- * One-time move of payment status off sessions: adds a read-only "Payment" formula to the
- * Session Calendar (summarising its charges' Status), then deletes the session "Status"
- * column and the charges' internal "Session Status Applied" column.
+ * One-time setup for two-way status columns: renames the "N/A" option to "Free" (keeping
+ * every value), adds "Status 2"... and the hidden "Status Sync" column to the Session
+ * Calendar, adds the read-only "Payment" summary, and removes the charges' unused internal
+ * "Session Status Applied" column. Safe to re-run: finished steps are skipped.
  */
 
-const OLD_SESSION_STATUS = "Status";
 const OLD_CHARGE_APPLIED = "Session Status Applied";
 export const PAYMENT_PROP = "Payment";
 
 /**
- * "Settled" / "Outstanding" / "N/A" when every charge agrees; otherwise each student's
- * status, e.g. "Ana: Settled · Ben: Outstanding". Blank when the session has no charges.
+ * One word when every charge agrees ("Settled", "Outstanding", "Free"); otherwise each
+ * student's status, e.g. "Ana: Settled · Ben: Outstanding". Blank when there are no charges.
  */
 export const PAYMENT_FORMULA = `let(
   charges, prop("${SESSION_CHARGES_BACKLINK}"),
@@ -27,17 +29,25 @@ export const PAYMENT_FORMULA = `let(
       join(map(charges, first(split(current.prop("${CHARGE_PROPS.title}"), " — ")) + ": " + format(current.prop("${CHARGE_PROPS.status}"))), " · ")))
 )`;
 
+type Option = { id: string; name: string; color?: string };
+type Props = Record<string, { id: string; type: string; select?: { options?: Option[] } }>;
+
 export type StatusMigrationReport = {
-  sessionHasStatus: boolean;
+  /** Select columns that still have an "N/A" option, with how it will be renamed. */
+  renameFree: string[];
   sessionHasPayment: boolean;
   chargesHaveApplied: boolean;
-  /** Sessions with no charges (not Meeting Type "Session") whose Status would be lost. */
-  unbilledWithStatus: { title: string; date: string | null; status: string; url: string }[];
+  maxStudents: number;
+  /**
+   * Billed sessions whose status column disagrees with the matching student's charge. On the
+   * first sync the charge wins, so these columns would change.
+   */
+  mismatches: { title: string; date: string | null; column: string; session: string; charge: string }[];
 };
 
-async function sourceProperties(dataSourceId: string): Promise<Record<string, { type: string }>> {
+async function props(dataSourceId: string): Promise<Props> {
   const source = await notion().dataSources.retrieve({ data_source_id: dataSourceId });
-  return (source as { properties?: Record<string, { type: string }> }).properties ?? {};
+  return (source as { properties?: Props }).properties ?? {};
 }
 
 function chargesSource(): Promise<string> {
@@ -46,68 +56,121 @@ function chargesSource(): Promise<string> {
   return resolveDataSourceId(configured);
 }
 
-/** Read-only: what the migration would change, and anything that blocks it. */
+function selectsWithLegacyFree(all: Props, names: string[]): string[] {
+  return names.filter((name) =>
+    all[name]?.select?.options?.some((o) => o.name === LEGACY_FREE_STATUS),
+  );
+}
+
+function statusColumnNames(all: Props): string[] {
+  const names: string[] = [];
+  for (let i = 0; statusColumnName(i) in all; i++) names.push(statusColumnName(i));
+  return names;
+}
+
+/** Read-only: what the setup would change. */
 export async function planStatusMigration(): Promise<StatusMigrationReport> {
-  const sessions = await sessionsDataSourceId();
-  const [sessionProps, chargeProps] = await Promise.all([
-    sourceProperties(sessions),
-    sourceProperties(await chargesSource()),
+  const sessionsId = await sessionsDataSourceId();
+  const chargesId = await chargesSource();
+  const [sessionProps, chargeProps, ledger] = await Promise.all([
+    props(sessionsId),
+    props(chargesId),
+    chargesBySession(),
   ]);
   const report: StatusMigrationReport = {
-    sessionHasStatus: OLD_SESSION_STATUS in sessionProps,
+    renameFree: [
+      ...selectsWithLegacyFree(sessionProps, statusColumnNames(sessionProps)).map((n) => `Session Calendar · ${n}`),
+      ...selectsWithLegacyFree(chargeProps, [CHARGE_PROPS.status]).map((n) => `Session Charges · ${n}`),
+    ],
     sessionHasPayment: PAYMENT_PROP in sessionProps,
     chargesHaveApplied: OLD_CHARGE_APPLIED in chargeProps,
-    unbilledWithStatus: [],
+    maxStudents: 0,
+    mismatches: [],
   };
-  if (!report.sessionHasStatus) return report;
 
+  const free = (s: string | null) => (s === LEGACY_FREE_STATUS ? FREE_STATUS : s);
   const studentCache = new Map();
   for await (const page of iteratePaginatedAPI(notion().dataSources.query, {
-    data_source_id: sessions,
+    data_source_id: sessionsId,
   })) {
     if (!isFullPage(page)) continue;
-    const status = plainText(page.properties[OLD_SESSION_STATUS]);
-    if (!status) continue;
     const session = await toSession(page, studentCache);
-    if (session.deleted || isAccountable(session)) continue;
-    report.unbilledWithStatus.push({ title: session.title, date: session.start, status, url: session.url });
+    if (session.deleted || !isAccountable(session)) continue;
+    report.maxStudents = Math.max(report.maxStudents, session.studentIds.length);
+    if (session.statusSync) continue;
+    const charges = ledger.get(dashless(session.pageId)) ?? [];
+    session.studentIds.forEach((id, i) => {
+      const charge = charges.find((c) => dashless(c.studentId) === dashless(id));
+      const column = free(session.statusColumns[i] ?? session.statusColumns[0] ?? null);
+      const chargeStatus = free(charge?.status ?? null);
+      if (charge && column && column !== chargeStatus) {
+        report.mismatches.push({
+          title: session.title,
+          date: session.start,
+          column: statusColumnName(i),
+          session: column,
+          charge: chargeStatus ?? "",
+        });
+      }
+    });
   }
   return report;
 }
 
-/**
- * Adds Payment, then deletes the old columns. Refuses while any session without charges still
- * has a Status value, so nothing is lost silently. Safe to re-run: finished steps are skipped.
- */
+/** Renames N/A to Free in a select, keeping every option (by id) and so every value. */
+async function renameLegacyFree(dataSourceId: string, all: Props, names: string[]) {
+  const properties: Record<string, unknown> = {};
+  for (const name of names) {
+    const options = all[name]?.select?.options ?? [];
+    if (options.some((o) => o.name === FREE_STATUS)) {
+      throw new Error(`${name} already has both "${FREE_STATUS}" and "${LEGACY_FREE_STATUS}" options`);
+    }
+    properties[name] = {
+      select: {
+        options: options.map((o) => ({
+          id: o.id,
+          name: o.name === LEGACY_FREE_STATUS ? FREE_STATUS : o.name,
+          color: o.color,
+        })),
+      },
+    };
+  }
+  if (Object.keys(properties).length > 0) {
+    await notion().dataSources.update({ data_source_id: dataSourceId, properties: properties as never });
+  }
+}
+
+/** Applies the schema changes; the caller then runs a full reconcile to fill the columns. */
 export async function applyStatusMigration(): Promise<{ done: string[]; report: StatusMigrationReport }> {
   const report = await planStatusMigration();
-  if (report.unbilledWithStatus.length > 0) {
-    throw new Error(
-      `${report.unbilledWithStatus.length} session(s) without charges still have a Status; resolve them first`,
-    );
-  }
-  const sessions = await sessionsDataSourceId();
+  const sessionsId = await sessionsDataSourceId();
+  const chargesId = await chargesSource();
   const done: string[] = [];
+
+  const sessionProps = await props(sessionsId);
+  const sessionRenames = selectsWithLegacyFree(sessionProps, statusColumnNames(sessionProps));
+  await renameLegacyFree(sessionsId, sessionProps, sessionRenames);
+  const chargeProps = await props(chargesId);
+  const chargeRenames = selectsWithLegacyFree(chargeProps, [CHARGE_PROPS.status]);
+  await renameLegacyFree(chargesId, chargeProps, chargeRenames);
+  if (sessionRenames.length + chargeRenames.length > 0) done.push(`renamed N/A to Free: ${report.renameFree.join(", ")}`);
+
+  const added = await ensureSessionStatusColumns(report.maxStudents);
+  if (added.length > 0) done.push(`added session columns: ${added.join(", ")}`);
+
   if (!report.sessionHasPayment) {
     await notion().dataSources.update({
-      data_source_id: sessions,
+      data_source_id: sessionsId,
       properties: { [PAYMENT_PROP]: { formula: { expression: PAYMENT_FORMULA } } },
     } as never);
     done.push(`added ${PAYMENT_PROP}`);
   }
-  if (report.sessionHasStatus) {
-    await notion().dataSources.update({
-      data_source_id: sessions,
-      properties: { [OLD_SESSION_STATUS]: null },
-    } as never);
-    done.push(`deleted session ${OLD_SESSION_STATUS}`);
-  }
   if (report.chargesHaveApplied) {
     await notion().dataSources.update({
-      data_source_id: await chargesSource(),
+      data_source_id: chargesId,
       properties: { [OLD_CHARGE_APPLIED]: null },
     } as never);
-    done.push(`deleted charge ${OLD_CHARGE_APPLIED}`);
+    done.push(`removed charge column ${OLD_CHARGE_APPLIED}`);
   }
   return { done, report };
 }

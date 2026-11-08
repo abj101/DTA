@@ -14,6 +14,10 @@ import {
   pickSurvivor,
   removalAction,
   flaggedFields,
+  formatStatusSync,
+  mergeSessionStatuses,
+  parseStatusSync,
+  statusColumnName,
   sessionHasPassed,
   targetStandardRate,
 } from "../src/lib/charges.ts";
@@ -170,5 +174,50 @@ assert.deepEqual(backfillSeed("Settled", 60, 60), { seed: 60, mismatch: false })
 assert.deepEqual(backfillSeed("Settled", null, 60), { seed: 60, mismatch: false });
 assert.deepEqual(backfillSeed("N/A", 0, 60), { seed: 60, mismatch: false });
 assert.deepEqual(backfillSeed(null, 40, null), { seed: 40, mismatch: false });
+
+// Status columns: named by position.
+assert.deepEqual([0, 1, 2].map(statusColumnName), ["Status", "Status 2", "Status 3"]);
+assert.deepEqual(parseStatusSync(formatStatusSync([{ studentId: "A-1", status: "Settled" }])), [
+  { studentId: "a1", status: "Settled" },
+]);
+assert.deepEqual(parseStatusSync("garbage"), []);
+
+const merge = (studentIds, columns, charges, sync) =>
+  mergeSessionStatuses({ studentIds, columns, charges, sync: parseStatusSync(sync) });
+// Never synced: charges win; columns are filled from them.
+assert.deepEqual(merge(["a", "b"], ["Settled", null], ["Settled", "Outstanding"], ""), {
+  statuses: ["Settled", "Outstanding"],
+  chargeWrites: [],
+  columns: ["Settled", "Outstanding"],
+  sync: "a=Settled;b=Outstanding",
+});
+// You set Status 2 on the session -> Ben's charge follows.
+assert.deepEqual(
+  merge(["a", "b"], ["Outstanding", "Settled"], ["Outstanding", "Outstanding"], "a=Outstanding;b=Outstanding")
+    .chargeWrites,
+  [1],
+);
+// You set Ana's charge -> the session's Status column follows.
+const fromCharge = merge(["a"], ["Outstanding"], ["Settled"], "a=Outstanding");
+assert.deepEqual([fromCharge.chargeWrites, fromCharge.columns], [[], ["Settled"]]);
+// In sync: nothing to write.
+const steady = merge(["a", "b"], ["Settled", "Free"], ["Settled", "Free"], "a=Settled;b=Free");
+assert.deepEqual([steady.chargeWrites, steady.columns, steady.sync], [[], ["Settled", "Free"], "a=Settled;b=Free"]);
+// A cleared column is refilled from the charge, never clearing the charge.
+assert.deepEqual(merge(["a"], [null], ["Settled"], "a=Settled").columns, ["Settled"]);
+// Student list reordered: each column takes its new student's charge, never the old value.
+const swapped = merge(["b", "a"], ["Settled", "Outstanding"], ["Outstanding", "Settled"], "a=Settled;b=Outstanding");
+assert.deepEqual([swapped.chargeWrites, swapped.columns], [[], ["Outstanding", "Settled"]]);
+// New student with no charge: takes their (fresh) column, else Outstanding; a column that
+// belonged to a removed student isn't applied to the newcomer.
+assert.deepEqual(merge(["a", "b"], ["Settled", "Free"], ["Settled", undefined], "a=Settled"), {
+  statuses: ["Settled", "Free"],
+  chargeWrites: [1],
+  columns: ["Settled", "Free"],
+  sync: "a=Settled;b=Free",
+});
+assert.deepEqual(merge(["c"], ["Settled"], [undefined], "a=Settled").statuses, ["Outstanding"]);
+// Student removed: extra columns are cleared.
+assert.deepEqual(merge(["a"], ["Settled", "Free"], ["Settled"], "a=Settled;b=Free").columns, ["Settled", null]);
 
 console.log("charges self-check OK");

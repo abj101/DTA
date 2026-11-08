@@ -2,6 +2,7 @@ import { auth, sheets, type sheets_v4 } from "@googleapis/sheets";
 
 import {
   FREE_STATUS,
+  LEGACY_FREE_STATUS,
   chargeRows,
   isAccountable,
   rowAmount,
@@ -48,6 +49,7 @@ const STATUS_COLORS: Record<string, sheets_v4.Schema$Color> = {
   Settled: rgb("#B6D7A8"),
   Outstanding: rgb("#EA9999"),
   [FREE_STATUS]: rgb("#D9D9D9"),
+  [LEGACY_FREE_STATUS]: rgb("#D9D9D9"),
 };
 /** Faded ("light 3") versions of each tutor's Notion option color. */
 const TUTOR_ROW_COLORS: Record<string, sheets_v4.Schema$Color> = {

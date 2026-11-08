@@ -17,7 +17,10 @@ import {
   sessionYmdIn,
   type Charge,
   flaggedFields,
+  mergeSessionStatuses,
+  parseStatusSync,
 } from "@/lib/charges";
+import { ensureSessionStatusColumns, writeSessionStatuses } from "@/lib/session-status-columns";
 import {
   getSessionPage,
   notion,
@@ -134,6 +137,8 @@ export type ReconcileResult = {
   trashed: number;
   flagged: number;
   merged: number;
+  /** The session's status columns were rewritten. */
+  sessionUpdated: boolean;
 };
 
 /**
@@ -154,6 +159,7 @@ export async function reconcileSession(
     trashed: 0,
     flagged: 0,
     merged: 0,
+    sessionUpdated: false,
   };
   const existing = prefetched ?? (await chargesOfSession(session.pageId));
   result.chargeIds.push(...existing.map((c) => c.pageId));
@@ -168,7 +174,8 @@ export async function reconcileSession(
   if (accountable) {
     const ymd = sessionYmdIn(session.start!, DTA_SCHEDULE_TZ);
     const passed = sessionHasPassed(session.start!, now, DTA_SCHEDULE_TZ);
-    for (const [index, studentId] of session.studentIds.entries()) {
+    const found: (Charge | null)[] = [];
+    for (const studentId of session.studentIds) {
       const key = `${dashless(session.pageId)}:${dashless(studentId)}`;
       wanted.add(key);
       const group = byKey.get(key) ?? [];
@@ -191,12 +198,36 @@ export async function reconcileSession(
           result.merged += discard.length;
         }
       }
-      const fields = desiredFields(charge, {
-        title: chargeTitle(session.students[index], ymd),
-        currentRate: session.studentRates[index] ?? null,
-        passed,
-        ymd,
-      });
+      found.push(charge);
+    }
+
+    // Two-way sync of the session's per-student status columns with the charges.
+    const statuses = mergeSessionStatuses({
+      studentIds: session.studentIds,
+      columns: session.statusColumns,
+      charges: found.map((c) => (c ? c.status : undefined)),
+      sync: parseStatusSync(session.statusSync),
+    });
+    const columnsChanged =
+      statuses.columns.some((value, i) => value !== (session.statusColumns[i] ?? null)) ||
+      statuses.sync !== session.statusSync;
+    if (columnsChanged && !session.deleted) {
+      await ensureSessionStatusColumns(statuses.columns.length);
+      await writeSessionStatuses(session.pageId, statuses.columns, statuses.sync);
+      result.sessionUpdated = true;
+    }
+
+    for (const [index, studentId] of session.studentIds.entries()) {
+      const charge = found[index];
+      const fields = {
+        ...desiredFields(charge, {
+          title: chargeTitle(session.students[index], ymd),
+          currentRate: session.studentRates[index] ?? null,
+          passed,
+          ymd,
+        }),
+        status: statuses.statuses[index],
+      };
       if (!charge) {
         const created = await notion().pages.create({
           parent: { data_source_id },
