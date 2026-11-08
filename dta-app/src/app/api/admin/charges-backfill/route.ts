@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
-import { applyBackfill, planBackfill } from "@/lib/charges-backfill";
+import { applyBackfill, ledgerCounts, planBackfill } from "@/lib/charges-backfill";
 import { accessiblePages, createChargesDatabase } from "@/lib/charges-setup";
 
 export const maxDuration = 300;
@@ -34,6 +34,9 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const since = new Date(url.searchParams.get("since") ?? "2000-01-01");
   try {
+    if (url.searchParams.get("action") === "count") {
+      return NextResponse.json({ ok: true, ...(await ledgerCounts()) });
+    }
     if (url.searchParams.get("action") === "pages") {
       return NextResponse.json({ ok: true, pages: await accessiblePages() });
     }

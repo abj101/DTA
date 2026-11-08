@@ -195,3 +195,22 @@ export async function applyBackfill(
   }
   return done;
 }
+
+/** Raw charge pages vs distinct keys in the ledger; a gap means duplicates for the cron to merge. */
+export async function ledgerCounts(): Promise<{ pages: number; keys: number; unparsed: number }> {
+  const configured = process.env.NOTION_CHARGES_DATA_SOURCE_ID?.trim();
+  if (!configured) throw new Error("NOTION_CHARGES_DATA_SOURCE_ID is not set");
+  const keys = new Set<string>();
+  let pages = 0;
+  let unparsed = 0;
+  for await (const page of iteratePaginatedAPI(notion().dataSources.query, {
+    data_source_id: await resolveDataSourceId(configured),
+  })) {
+    if (!isFullPage(page) || page.in_trash) continue;
+    pages++;
+    const charge = chargeFromPage(page);
+    if (charge) keys.add(charge.key);
+    else unparsed++;
+  }
+  return { pages, keys: keys.size, unparsed };
+}
