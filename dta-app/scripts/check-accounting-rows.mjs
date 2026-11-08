@@ -17,7 +17,7 @@ const session = (over = {}) => ({
   studentRates: [],
   meetingType: "Session",
   meetingTypeColor: null,
-  status: null,
+  payment: null,
   details: [],
   ...over,
 });
@@ -38,13 +38,9 @@ assert.deepEqual(
   [60, null],
 );
 
-// Free sessions are $0 per student; a student-less session keeps one blank row.
-assert.deepEqual(
-  sessionRows([
-    session({ status: FREE_STATUS, students: ["Ana"], studentRates: [60] }),
-  ]).map(rowAmount),
-  [0],
-);
+// Status lives only on charges, so legacy rows have a blank Status; a student-less session
+// keeps one blank row.
+assert.deepEqual(sessionRows([session({ students: ["Ana"], studentRates: [60] })])[0].status, null);
 assert.deepEqual(sessionRows([session()]).map(rowAmount), [null]);
 
 // Ledger rows: per-charge status and Adjusted Rate ?? Standard Rate; N/A still means $0.
@@ -88,7 +84,7 @@ assert.deepEqual(
     ["Cy", "Outstanding", 60, "https://notion.so/c1"],
   ],
 );
-// A student without a charge yet falls back to the live rate and session status.
+// A student without a charge yet falls back to the live rate and a blank status.
 assert.deepEqual(
   chargeRows([two], new Map()).map((r) => [r.student, rowAmount(r), r.url]),
   [

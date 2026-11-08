@@ -142,9 +142,9 @@ export async function planBackfill(since: Date): Promise<BackfillPlan> {
       const sheetAmount =
         amounts.get(`${dashless(session.pageId)}|${student.trim().toLowerCase()}`) ?? null;
       const currentRate = session.studentRates[i] ?? null;
-      const { seed, mismatch } = backfillSeed(session.status, sheetAmount, currentRate);
+      const { seed, mismatch } = backfillSeed(null, sheetAmount, currentRate);
       const exists = existing.has(chargeKey(session.pageId, studentId));
-      const status = session.status ?? STATUS_OUTSTANDING;
+      const status = STATUS_OUTSTANDING;
       const flag = mismatch ? "MISMATCH" : seed == null ? "NO_RATE" : "";
       if (flag === "MISMATCH") flagged.mismatch++;
       if (flag === "NO_RATE") flagged.noRate++;
@@ -193,7 +193,6 @@ export async function applyBackfill(
           studentRemoved: false,
           date: c.ymd,
           status: c.status,
-          sessionStatusApplied: c.session.status ?? "",
         },
       }) as never,
     });

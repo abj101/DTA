@@ -18,17 +18,17 @@ export type AccountingRow = {
 
 /**
  * Legacy rows, used before the Charges database exists (or for a student whose charge has
- * not been created yet): the session's shared Status and the student's live Session Rate.
+ * not been created yet): the student's live Session Rate and a blank Status (Status lives only on charges).
  */
 export function sessionRows(sessions: Session[]): AccountingRow[] {
   return sessions.flatMap((session) =>
     session.students.length === 0
-      ? [{ session, student: "", rate: null, status: session.status, url: session.url }]
+      ? [{ session, student: "", rate: null, status: null, url: session.url }]
       : session.students.map((student, index) => ({
           session,
           student,
           rate: session.studentRates[index] ?? null,
-          status: session.status,
+          status: null,
           url: session.url,
         })),
   );
@@ -53,7 +53,7 @@ export function chargeRows(
           session,
           student,
           rate: session.studentRates[index] ?? null,
-          status: session.status,
+          status: null,
           url: session.url,
         };
       }
@@ -65,7 +65,7 @@ export function chargeRows(
     }
     return rows.length > 0
       ? rows
-      : [{ session, student: "", rate: null, status: session.status, url: session.url }];
+      : [{ session, student: "", rate: null, status: null, url: session.url }];
   });
 }
 

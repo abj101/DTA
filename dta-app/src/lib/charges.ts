@@ -19,8 +19,6 @@ export const CHARGE_PROPS = {
   studentRemoved: "Student Removed",
   /** Session date (app-managed), so the ledger can be split into month views. */
   date: "Date",
-  /** Last session Status the app copied onto this charge (hidden; app-managed). */
-  sessionStatusApplied: "Session Status Applied",
 } as const;
 
 export const STATUS_OUTSTANDING = "Outstanding";
@@ -44,7 +42,6 @@ export type Charge = {
   studentRemoved: boolean;
   /** YYYY-MM-DD, or "" when never set. */
   date: string;
-  sessionStatusApplied: string;
 };
 
 /** The fields the app manages on a charge; everything else belongs to the user. */
@@ -53,9 +50,8 @@ export type ManagedFields = {
   standardRate: number | null;
   studentRemoved: boolean;
   date: string;
-  /** Payment status; the app only changes it when the session's own Status changes. */
+  /** Payment status: set to Outstanding when the charge is created, then yours alone. */
   status: string | null;
-  sessionStatusApplied: string;
 };
 
 export function dashless(id: string): string {
@@ -116,21 +112,6 @@ export function chargeRate(adjusted: number | null, standard: number | null): nu
   return adjusted ?? standard;
 }
 
-/**
- * The Status a charge should hold. A change to the session's Status is copied onto every
- * one of its charges; otherwise the charge keeps its own (possibly individually edited)
- * Status. A cleared session Status never clears a charge.
- */
-export function targetStatus(
-  existing: { status: string | null; sessionStatusApplied: string } | null,
-  sessionStatus: string | null,
-): { status: string | null; sessionStatusApplied: string } {
-  const applied = sessionStatus ?? "";
-  if (!existing) return { status: sessionStatus ?? STATUS_OUTSTANDING, sessionStatusApplied: applied };
-  if (applied === existing.sessionStatusApplied) return existing;
-  return { status: sessionStatus ?? existing.status, sessionStatusApplied: applied };
-}
-
 /** The app-managed fields a charge should hold given the live session and student. */
 export function desiredFields(
   existing: Charge | null,
@@ -139,20 +120,15 @@ export function desiredFields(
     currentRate: number | null;
     passed: boolean;
     ymd: string;
-    sessionStatus: string | null;
   },
 ): ManagedFields {
-  const { status, sessionStatusApplied } = targetStatus(
-    existing && { status: existing.status, sessionStatusApplied: existing.sessionStatusApplied },
-    input.sessionStatus,
-  );
   return {
     title: input.title,
     standardRate: targetStandardRate(existing?.standardRate ?? null, input.currentRate, input.passed),
     studentRemoved: false,
     date: input.ymd,
-    status,
-    sessionStatusApplied,
+    // Payment status lives only on the charge: new ones start Outstanding, existing ones keep theirs.
+    status: existing ? existing.status : STATUS_OUTSTANDING,
   };
 }
 
@@ -164,7 +140,6 @@ export function flaggedFields(charge: Charge): ManagedFields {
     studentRemoved: true,
     date: charge.date,
     status: charge.status,
-    sessionStatusApplied: charge.sessionStatusApplied,
   };
 }
 
@@ -178,9 +153,6 @@ export function diffFields(charge: Charge, desired: ManagedFields): Partial<Mana
   }
   if (desired.date && charge.date !== desired.date) patch.date = desired.date;
   if (desired.status != null && charge.status !== desired.status) patch.status = desired.status;
-  if (charge.sessionStatusApplied !== desired.sessionStatusApplied) {
-    patch.sessionStatusApplied = desired.sessionStatusApplied;
-  }
   return patch;
 }
 
@@ -265,7 +237,6 @@ export function chargeFromPage(page: {
   const note = p[CHARGE_PROPS.note];
   const removed = p[CHARGE_PROPS.studentRemoved];
   const date = p[CHARGE_PROPS.date];
-  const applied = p[CHARGE_PROPS.sessionStatusApplied];
   return {
     pageId: page.id,
     url: page.url,
@@ -281,7 +252,6 @@ export function chargeFromPage(page: {
     note: note?.type === "rich_text" ? richText(note.rich_text) : "",
     studentRemoved: removed?.type === "checkbox" ? removed.checkbox : false,
     date: date?.type === "date" ? (date.date?.start.slice(0, 10) ?? "") : "",
-    sessionStatusApplied: applied?.type === "rich_text" ? richText(applied.rich_text) : "",
   };
 }
 
@@ -301,13 +271,6 @@ export function managedProperties(fields: Partial<ManagedFields>): PropertyValue
   }
   if (fields.date) props[CHARGE_PROPS.date] = { date: { start: fields.date } };
   if (fields.status != null) props[CHARGE_PROPS.status] = { select: { name: fields.status } };
-  if (fields.sessionStatusApplied !== undefined) {
-    props[CHARGE_PROPS.sessionStatusApplied] = {
-      rich_text: fields.sessionStatusApplied
-        ? [{ text: { content: fields.sessionStatusApplied } }]
-        : [],
-    };
-  }
   return props;
 }
 

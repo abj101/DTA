@@ -14,11 +14,12 @@ export const SESSION_PROPS = {
   tutors: "Primary Tutor",
   students: "Student",
   meetingType: "Meeting Type",
-  status: "Status",
+  /** Formula summarising the session's charges' payment Status (read-only). */
+  payment: "Payment",
   /** Number property on each related Student Database page. */
   studentRate: "Session Rate",
   /** Rendered into the event description, in this order, when non-empty. */
-  extra: ["Subject", "Meeting Type", "Topics", "Status"],
+  extra: ["Subject", "Meeting Type", "Topics", "Payment"],
 } as const;
 
 export type Session = {
@@ -39,7 +40,8 @@ export type Session = {
   meetingType: string | null;
   /** Notion option color of the Meeting Type select (e.g. "green"), if set. */
   meetingTypeColor: string | null;
-  status: string | null;
+  /** Payment summary of the session's charges, from the "Payment" formula. */
+  payment: string | null;
   details: { label: string; value: string }[];
 };
 
@@ -105,6 +107,12 @@ export function plainText(prop: Property | undefined): string {
       return prop.multi_select.map((o) => o.name).join(", ");
     case "number":
       return prop.number == null ? "" : String(prop.number);
+    case "formula":
+      return prop.formula.type === "string"
+        ? (prop.formula.string ?? "")
+        : prop.formula.type === "number" && prop.formula.number != null
+          ? String(prop.formula.number)
+          : "";
     case "checkbox":
       return prop.checkbox ? "Yes" : "No";
     case "url":
@@ -174,7 +182,7 @@ export async function toSession(
     studentRates: studentList.map((s) => s.rate),
     meetingType: meetingType?.type === "select" ? (meetingType.select?.name ?? null) : null,
     meetingTypeColor: meetingType?.type === "select" ? (meetingType.select?.color ?? null) : null,
-    status: plainText(props[SESSION_PROPS.status]) || null,
+    payment: plainText(props[SESSION_PROPS.payment]) || null,
     details: SESSION_PROPS.extra
       .map((label) => ({ label, value: plainText(props[label]) }))
       .filter((d) => d.value),

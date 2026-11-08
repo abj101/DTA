@@ -197,7 +197,7 @@ function goneSession(pageId: string): Session {
     studentRates: [],
     meetingType: null,
     meetingTypeColor: null,
-    status: null,
+    payment: null,
     details: [],
   };
 }
@@ -226,8 +226,8 @@ async function syncChargesAndSheet(pageId: string, session: Session | null): Pro
 
 /**
  * Sync a single Notion page (webhook path), routed by the database it lives in:
- * session -> charges + calendar + sheet; charge -> that month's sheet; student -> the
- * student's not-yet-frozen charges and the months they touch.
+ * session -> charges + calendar + sheet; charge -> its session's calendar event and month's
+ * sheet; student -> the student's not-yet-frozen charges and the months they touch.
  */
 export async function syncSession(pageId: string): Promise<SyncResult & { sheets?: string[] }> {
   const page = await getSessionPage(pageId);
@@ -240,9 +240,13 @@ export async function syncSession(pageId: string): Promise<SyncResult & { sheets
     const session = sessionPage ? await toSession(sessionPage) : null;
     // A cleared Standard Rate (re-snapshot) or a trashed charge (recreate) needs a reconcile.
     const needsReconcile = !!session && (charge.standardRate == null || page.in_trash);
-    const sheets = needsReconcile
-      ? await syncChargesAndSheet(charge.sessionId, session)
-      : await syncSessionSheet(charge.sessionId, session, [charge.pageId]);
+    // The session's Payment summary is computed from its charges, so its calendar event changes too.
+    const [, sheets] = await both(
+      syncCalendars(charge.sessionId, session),
+      needsReconcile
+        ? syncChargesAndSheet(charge.sessionId, session)
+        : syncSessionSheet(charge.sessionId, session, [charge.pageId]),
+    );
     return { pageId, action: "synced", reason: "charge page", sheets };
   }
 

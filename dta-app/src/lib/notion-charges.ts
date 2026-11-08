@@ -196,7 +196,6 @@ export async function reconcileSession(
         currentRate: session.studentRates[index] ?? null,
         passed,
         ymd,
-        sessionStatus: session.status,
       });
       if (!charge) {
         const created = await notion().pages.create({
@@ -277,7 +276,6 @@ export async function refreshStudentCharges(
         currentRate: session.studentRates[index] ?? null,
         passed: sessionHasPassed(session.start!, now, DTA_SCHEDULE_TZ),
         ymd,
-        sessionStatus: session.status,
       }),
     );
     if (Object.keys(patch).length > 0) await update(charge.pageId, managedProperties(patch));

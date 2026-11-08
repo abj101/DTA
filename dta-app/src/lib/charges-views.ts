@@ -26,7 +26,7 @@ const COLUMN_ORDER = [
   CHARGE_PROPS.studentRemoved,
 ];
 /** App bookkeeping columns, hidden from every tab. */
-const HIDDEN = [CHARGE_PROPS.key, CHARGE_PROPS.sessionStatusApplied];
+const HIDDEN: string[] = [CHARGE_PROPS.key];
 
 /** "2026-11" -> "Nov 2026" */
 export function monthViewName(month: string): string {
@@ -69,14 +69,11 @@ function loadLedger(): Promise<Ledger> {
   return ledger;
 }
 
-/** Adds the Date and Session Status Applied columns to a ledger created before they existed. */
+/** Adds the Date column to a ledger created before it existed. */
 export async function ensureChargeColumns(): Promise<string[]> {
   const { dataSourceId, propertyIds } = await loadLedger();
   const missing: Record<string, unknown> = {};
   if (!propertyIds.has(CHARGE_PROPS.date)) missing[CHARGE_PROPS.date] = { date: {} };
-  if (!propertyIds.has(CHARGE_PROPS.sessionStatusApplied)) {
-    missing[CHARGE_PROPS.sessionStatusApplied] = { rich_text: {} };
-  }
   if (Object.keys(missing).length === 0) return [];
   await notion().dataSources.update({ data_source_id: dataSourceId, properties: missing as never });
   ledger = null;

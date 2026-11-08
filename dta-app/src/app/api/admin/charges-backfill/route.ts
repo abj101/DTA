@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { applyBackfill, ledgerCounts, planBackfill } from "@/lib/charges-backfill";
+import { applyStatusMigration, planStatusMigration } from "@/lib/session-status-migration";
 import { accessiblePages, createChargesDatabase, makeChargesInline } from "@/lib/charges-setup";
 
 export const maxDuration = 300;
@@ -36,6 +37,9 @@ export async function GET(req: Request) {
   try {
     if (url.searchParams.get("action") === "count") {
       return NextResponse.json({ ok: true, ...(await ledgerCounts()) });
+    }
+    if (url.searchParams.get("action") === "status-migration") {
+      return NextResponse.json({ ok: true, ...(await planStatusMigration()) });
     }
     if (url.searchParams.get("action") === "pages") {
       return NextResponse.json({ ok: true, pages: await accessiblePages() });
@@ -78,6 +82,9 @@ export async function POST(req: Request) {
       }
       const parent = url.searchParams.get("parent") ?? undefined;
       return NextResponse.json({ ok: true, ...(await createChargesDatabase(parent)) });
+    }
+    if (action === "status-migration") {
+      return NextResponse.json({ ok: true, ...(await applyStatusMigration()) });
     }
     if (action === "inline") {
       return NextResponse.json({ ok: true, ...(await makeChargesInline()) });
