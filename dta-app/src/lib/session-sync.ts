@@ -309,7 +309,7 @@ export async function reconcileAllCharges(lookback: Date) {
   return { ...totals, columnsAdded: added };
 }
 
-async function syncAllCalendars(since: Date) {
+export async function syncAllCalendars(since: Date) {
   const calendars = tutorCalendars();
 
   const [sessions, ...eventIds] = await Promise.all([

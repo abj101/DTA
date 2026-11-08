@@ -1,8 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { isAccountable } from "@/lib/accounting-rows";
 import { applyBackfill, ledgerCounts, planBackfill } from "@/lib/charges-backfill";
-import { reconcileAllCharges } from "@/lib/session-sync";
+import { dashless, paymentSummary } from "@/lib/charges";
+import { chargesBySession } from "@/lib/notion-charges";
+import { querySessions } from "@/lib/notion-sessions";
+import { syncAllSessionSheets } from "@/lib/accounting-sheet";
+import { reconcileAllCharges, syncAllCalendars } from "@/lib/session-sync";
 import {
   applyStatusMigration,
   planStatusMigration,
@@ -39,6 +44,9 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const since = new Date(url.searchParams.get("since") ?? "2000-01-01");
   try {
+    if (url.searchParams.get("action") === "verify") {
+      return NextResponse.json({ ok: true, ...(await verifyLinks()) });
+    }
     if (url.searchParams.get("action") === "count") {
       return NextResponse.json({ ok: true, ...(await ledgerCounts()) });
     }
@@ -87,6 +95,13 @@ export async function POST(req: Request) {
       const parent = url.searchParams.get("parent") ?? undefined;
       return NextResponse.json({ ok: true, ...(await createChargesDatabase(parent)) });
     }
+    if (action === "resync-all") {
+      // Every date, once: rebuilds all sheet months and calendar events from Notion.
+      const since = new Date("2000-01-01");
+      const sheets = await syncAllSessionSheets(since);
+      const calendars = await syncAllCalendars(since);
+      return NextResponse.json({ ok: true, sheets, calendars: { ...calendars, skipped: calendars.skipped.length } });
+    }
     if (action === "status-migration") {
       const migration = await applyStatusMigration();
       // Fill every billed session's status columns from its charges (all dates, once).
@@ -106,4 +121,39 @@ export async function POST(req: Request) {
     console.error(`[charges-backfill] ${action} failed`, error);
     return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
   }
+}
+
+/** Read-only cross-check: every billed session's columns and Payment against its charges. */
+async function verifyLinks() {
+  const [sessions, ledger] = await Promise.all([
+    querySessions(new Date("2000-01-01")),
+    chargesBySession(),
+  ]);
+  const statusCounts: Record<string, number> = {};
+  const problems: string[] = [];
+  const multi: { title: string; columns: (string | null)[]; payment: string | null }[] = [];
+  let billed = 0;
+  for (const session of sessions.filter(isAccountable)) {
+    billed++;
+    const charges = ledger.get(dashless(session.pageId)) ?? [];
+    const statuses = session.studentIds.map((id, i) => {
+      const charge = charges.find((c) => dashless(c.studentId) === dashless(id));
+      if (!charge) problems.push(`${session.title} ${session.start}: no charge for ${session.students[i]}`);
+      const status = charge?.status ?? "";
+      statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+      if ((session.statusColumns[i] ?? "") !== status) {
+        problems.push(`${session.title} ${session.start}: column ${i + 1} ${session.statusColumns[i]} vs charge ${status}`);
+      }
+      return status;
+    });
+    const expected = paymentSummary(session.students, statuses);
+    if ((session.payment ?? "") !== expected) {
+      problems.push(`${session.title} ${session.start}: Payment "${session.payment}" vs "${expected}"`);
+    }
+    if (session.studentIds.length > 1) {
+      multi.push({ title: session.title, columns: session.statusColumns, payment: session.payment });
+    }
+  }
+  const legacy = sessions.filter((s) => s.statusColumns.includes("N/A")).length;
+  return { billed, statusCounts, problems, legacyNA: legacy, multiStudent: multi };
 }
