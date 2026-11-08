@@ -37,6 +37,7 @@ export async function createChargesDatabase(parentPageId?: string): Promise<Crea
   const created = await notion().databases.create({
     parent: parent ? { type: "page_id", page_id: parent } : { type: "workspace", workspace: true },
     title: [{ text: { content: "Session Charges" } }],
+    is_inline: true,
     description: [
       {
         text: {
@@ -96,4 +97,18 @@ export async function accessiblePages(): Promise<{ id: string; title: string; ur
       ? []
       : [{ id: page.id, title: text || "Untitled", url: "url" in page ? String(page.url) : "" }];
   });
+}
+
+/** Shows the ledger as a table inside its parent page rather than as a link to a subpage. */
+export async function makeChargesInline(): Promise<{ databaseId: string; isInline: boolean }> {
+  const configured = process.env.NOTION_CHARGES_DATA_SOURCE_ID?.trim();
+  if (!configured) throw new Error("NOTION_CHARGES_DATA_SOURCE_ID is not set");
+  const source = await notion().dataSources.retrieve({
+    data_source_id: await resolveDataSourceId(configured),
+  });
+  const databaseId = ((source as { parent?: unknown }).parent as { database_id?: string } | undefined)
+    ?.database_id;
+  if (!databaseId) throw new Error("Charges data source has no parent database");
+  const db = await notion().databases.update({ database_id: databaseId, is_inline: true });
+  return { databaseId, isInline: "is_inline" in db ? Boolean(db.is_inline) : true };
 }

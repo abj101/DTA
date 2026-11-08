@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { applyBackfill, ledgerCounts, planBackfill } from "@/lib/charges-backfill";
-import { accessiblePages, createChargesDatabase } from "@/lib/charges-setup";
+import { accessiblePages, createChargesDatabase, makeChargesInline } from "@/lib/charges-setup";
 
 export const maxDuration = 300;
 
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 /**
  * Writes, so POST only: `?action=create-db` creates the Session Charges database (refuses
  * when NOTION_CHARGES_DATA_SOURCE_ID is already set); `?action=apply` creates the planned
- * charges, skipping any that already exist.
+ * charges, skipping any that already exist; `?action=inline` shows the ledger inline in its page.
  */
 export async function POST(req: Request) {
   const denied = guard(req);
@@ -78,6 +78,9 @@ export async function POST(req: Request) {
       }
       const parent = url.searchParams.get("parent") ?? undefined;
       return NextResponse.json({ ok: true, ...(await createChargesDatabase(parent)) });
+    }
+    if (action === "inline") {
+      return NextResponse.json({ ok: true, ...(await makeChargesInline()) });
     }
     if (action === "apply") {
       const plan = await planBackfill(new Date(url.searchParams.get("since") ?? "2000-01-01"));
