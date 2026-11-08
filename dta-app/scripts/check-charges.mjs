@@ -221,6 +221,29 @@ assert.deepEqual(merge(["c"], ["Settled"], [undefined], "a=Settled").statuses, [
 // Student removed: extra columns are cleared.
 assert.deepEqual(merge(["a"], ["Settled", "Free"], ["Settled"], "a=Settled;b=Free").columns, ["Settled", null]);
 
+// Third student added: Status 3 is filled (and its charge created) without touching 1 and 2.
+const third = merge(["a", "b", "c"], ["Settled", "Free"], ["Settled", "Free", undefined], "a=Settled;b=Free");
+assert.deepEqual([third.chargeWrites, third.columns, third.sync], [
+  [2],
+  ["Settled", "Free", "Outstanding"],
+  "a=Settled;b=Free;c=Outstanding",
+]);
+// Four students: each column syncs with its own charge, in both directions.
+const four = merge(
+  ["a", "b", "c", "d"],
+  ["Settled", "Outstanding", "Outstanding", "Settled"],
+  ["Settled", "Settled", "Outstanding", "Outstanding"],
+  "a=Settled;b=Outstanding;c=Outstanding;d=Outstanding",
+);
+assert.deepEqual([four.chargeWrites, four.columns], [[3], ["Settled", "Settled", "Outstanding", "Settled"]]);
+// A one-student session leaves the database's other status columns blank.
+assert.deepEqual(merge(["a"], ["Settled", null, null, null], ["Settled"], "a=Settled").columns, [
+  "Settled",
+  null,
+  null,
+  null,
+]);
+
 // Payment text: one word when all match, otherwise per student; blank with no students.
 assert.equal(paymentSummary(["Ana Lee"], ["Settled"]), "Settled");
 assert.equal(paymentSummary(["Ana Lee", "Ben Ng"], ["Free", "Free"]), "Free");
