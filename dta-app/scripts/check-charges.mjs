@@ -17,6 +17,7 @@ import {
   formatStatusSync,
   mergeSessionStatuses,
   parseStatusSync,
+  paymentSummary,
   statusColumnName,
   sessionHasPassed,
   targetStandardRate,
@@ -219,5 +220,14 @@ assert.deepEqual(merge(["a", "b"], ["Settled", "Free"], ["Settled", undefined], 
 assert.deepEqual(merge(["c"], ["Settled"], [undefined], "a=Settled").statuses, ["Outstanding"]);
 // Student removed: extra columns are cleared.
 assert.deepEqual(merge(["a"], ["Settled", "Free"], ["Settled"], "a=Settled;b=Free").columns, ["Settled", null]);
+
+// Payment text: one word when all match, otherwise per student; blank with no students.
+assert.equal(paymentSummary(["Ana Lee"], ["Settled"]), "Settled");
+assert.equal(paymentSummary(["Ana Lee", "Ben Ng"], ["Free", "Free"]), "Free");
+assert.equal(
+  paymentSummary(["Ana Lee", "Ben Ng"], ["Settled", "Outstanding"]),
+  "Ana Lee: Settled · Ben Ng: Outstanding",
+);
+assert.equal(paymentSummary([], []), "");
 
 console.log("charges self-check OK");

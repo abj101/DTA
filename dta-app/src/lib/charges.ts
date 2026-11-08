@@ -319,6 +319,9 @@ export function statusColumnName(index: number): string {
 /** Hidden session column recording what the app last synced, by position. */
 export const STATUS_SYNC_PROP = "Status Sync";
 
+/** Session column the app writes with a summary of its students' statuses. */
+export const PAYMENT_PROP = "Payment";
+
 export type SyncEntry = { studentId: string; status: string };
 
 /** "id=Settled;id=Outstanding" -> entries; unreadable text -> [] (treated as never synced). */
@@ -388,4 +391,14 @@ export function mergeSessionStatuses(input: {
     input.studentIds.map((studentId, i) => ({ studentId, status: statuses[i] })),
   );
   return { statuses, chargeWrites, columns, sync };
+}
+
+/**
+ * The session's Payment text: one status when every student shares it ("Settled"),
+ * otherwise each student's ("Ana: Settled · Ben: Outstanding"). Blank with no students.
+ */
+export function paymentSummary(students: string[], statuses: string[]): string {
+  if (statuses.length === 0) return "";
+  if (new Set(statuses).size === 1) return statuses[0];
+  return students.map((name, i) => `${name}: ${statuses[i]}`).join(" · ");
 }

@@ -16,7 +16,7 @@ export const SESSION_PROPS = {
   tutors: "Primary Tutor",
   students: "Student",
   meetingType: "Meeting Type",
-  /** Formula summarising the session's charges' payment Status (read-only). */
+  /** App-written summary of the students' statuses (see paymentSummary). */
   payment: "Payment",
   /** Number property on each related Student Database page. */
   studentRate: "Session Rate",
@@ -42,7 +42,7 @@ export type Session = {
   meetingType: string | null;
   /** Notion option color of the Meeting Type select (e.g. "green"), if set. */
   meetingTypeColor: string | null;
-  /** Payment summary of the session's charges, from the "Payment" formula. */
+  /** Summary of the students' statuses, written by the app. */
   payment: string | null;
   /** Each student's status column ("Status", "Status 2", ...) as found on the page. */
   statusColumns: (string | null)[];

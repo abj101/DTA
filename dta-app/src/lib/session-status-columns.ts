@@ -1,10 +1,10 @@
 import { FREE_STATUS } from "./accounting-rows.ts";
-import { STATUS_OUTSTANDING, STATUS_SYNC_PROP, statusColumnName } from "./charges.ts";
+import { PAYMENT_PROP, STATUS_OUTSTANDING, STATUS_SYNC_PROP, statusColumnName } from "./charges.ts";
 import { notion, sessionsDataSourceId } from "./notion-sessions.ts";
 
 /*
- * Keeps the Session Calendar's per-student status columns ("Status", "Status 2", ...) and the
- * hidden "Status Sync" column in place. Columns are added when a session first has that many
+ * Keeps the Session Calendar's per-student status columns ("Status", "Status 2", ...), the
+ * hidden "Status Sync" column and the app-written "Payment" summary in place. Columns are added when a session first has that many
  * students and are never removed.
  */
 
@@ -30,6 +30,11 @@ function sessionProps(): Promise<SourceProps> {
   return known;
 }
 
+/** Forgets the cached Session Calendar schema (after another module changed it). */
+export function resetSessionColumnsCache(): void {
+  known = null;
+}
+
 /** Ensures status columns for `count` students plus the sync column; returns any added. */
 export async function ensureSessionStatusColumns(count: number): Promise<string[]> {
   const props = await sessionProps();
@@ -41,6 +46,7 @@ export async function ensureSessionStatusColumns(count: number): Promise<string[
     if (!(statusColumnName(i) in props)) missing[statusColumnName(i)] = { select: { options } };
   }
   if (!(STATUS_SYNC_PROP in props)) missing[STATUS_SYNC_PROP] = { rich_text: {} };
+  if (!(PAYMENT_PROP in props)) missing[PAYMENT_PROP] = { rich_text: {} };
   if (Object.keys(missing).length === 0) return [];
   await notion().dataSources.update({
     data_source_id: await sessionsDataSourceId(),
@@ -55,9 +61,12 @@ export async function writeSessionStatuses(
   pageId: string,
   columns: (string | null)[],
   sync: string,
+  payment: string,
 ): Promise<void> {
+  const text = (value: string) => ({ rich_text: value ? [{ text: { content: value } }] : [] });
   const properties: Record<string, unknown> = {
-    [STATUS_SYNC_PROP]: { rich_text: sync ? [{ text: { content: sync } }] : [] },
+    [STATUS_SYNC_PROP]: text(sync),
+    [PAYMENT_PROP]: text(payment),
   };
   columns.forEach((value, i) => {
     properties[statusColumnName(i)] = { select: value ? { name: value } : null };

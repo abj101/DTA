@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 
 import { applyBackfill, ledgerCounts, planBackfill } from "@/lib/charges-backfill";
 import { reconcileAllCharges } from "@/lib/session-sync";
-import { applyStatusMigration, planStatusMigration } from "@/lib/session-status-migration";
+import {
+  applyStatusMigration,
+  planStatusMigration,
+} from "@/lib/session-status-migration";
 import { accessiblePages, createChargesDatabase, makeChargesInline } from "@/lib/charges-setup";
 
 export const maxDuration = 300;

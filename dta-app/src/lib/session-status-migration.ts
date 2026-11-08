@@ -1,41 +1,27 @@
 import { isFullPage, iteratePaginatedAPI } from "@notionhq/client";
 
 import { FREE_STATUS, LEGACY_FREE_STATUS, isAccountable } from "./accounting-rows.ts";
-import { CHARGE_PROPS, dashless, statusColumnName } from "./charges.ts";
-import { SESSION_CHARGES_BACKLINK } from "./charges-setup.ts";
+import { CHARGE_PROPS, PAYMENT_PROP, dashless, statusColumnName } from "./charges.ts";
 import { chargesBySession } from "./notion-charges.ts";
 import { notion, resolveDataSourceId, sessionsDataSourceId, toSession } from "./notion-sessions.ts";
-import { ensureSessionStatusColumns } from "./session-status-columns.ts";
+import { ensureSessionStatusColumns, resetSessionColumnsCache } from "./session-status-columns.ts";
 
 /*
- * One-time setup for two-way status columns: renames the "N/A" option to "Free" (keeping
- * every value), adds "Status 2"... and the hidden "Status Sync" column to the Session
- * Calendar, adds the read-only "Payment" summary, and removes the charges' unused internal
- * "Session Status Applied" column. Safe to re-run: finished steps are skipped.
+ * One-time setup for two-way status columns: moves every "N/A" value to "Free", adds
+ * "Status 2"..., the hidden "Status Sync" and the app-written "Payment" columns to the Session
+ * Calendar, and removes the charges' unused internal "Session Status Applied" column. Safe to
+ * re-run: finished steps are skipped.
  */
 
 const OLD_CHARGE_APPLIED = "Session Status Applied";
-export const PAYMENT_PROP = "Payment";
-
-/**
- * One word when every charge agrees ("Settled", "Outstanding", "Free"); otherwise each
- * student's status, e.g. "Ana: Settled · Ben: Outstanding". Blank when there are no charges.
- */
-export const PAYMENT_FORMULA = `let(
-  charges, prop("${SESSION_CHARGES_BACKLINK}"),
-  statuses, map(charges, format(current.prop("${CHARGE_PROPS.status}"))),
-  if(empty(charges), "",
-    if(length(unique(statuses)) == 1, first(statuses),
-      join(map(charges, first(split(current.prop("${CHARGE_PROPS.title}"), " — ")) + ": " + format(current.prop("${CHARGE_PROPS.status}"))), " · ")))
-)`;
-
 type Option = { id: string; name: string; color?: string };
 type Props = Record<string, { id: string; type: string; select?: { options?: Option[] } }>;
 
 export type StatusMigrationReport = {
   /** Select columns that still have an "N/A" option, with how it will be renamed. */
   renameFree: string[];
-  sessionHasPayment: boolean;
+  /** A leftover "Payment" formula column (Notion's API can't build the summary as one). */
+  paymentIsFormula: boolean;
   chargesHaveApplied: boolean;
   maxStudents: number;
   /**
@@ -82,7 +68,7 @@ export async function planStatusMigration(): Promise<StatusMigrationReport> {
       ...selectsWithLegacyFree(sessionProps, statusColumnNames(sessionProps)).map((n) => `Session Calendar · ${n}`),
       ...selectsWithLegacyFree(chargeProps, [CHARGE_PROPS.status]).map((n) => `Session Charges · ${n}`),
     ],
-    sessionHasPayment: PAYMENT_PROP in sessionProps,
+    paymentIsFormula: sessionProps[PAYMENT_PROP]?.type === "formula",
     chargesHaveApplied: OLD_CHARGE_APPLIED in chargeProps,
     maxStudents: 0,
     mismatches: [],
@@ -181,36 +167,6 @@ async function replaceLegacyFree(dataSourceId: string, all: Props, names: string
   return changed;
 }
 
-/** Formula variants for Payment, most capable first; the first Notion accepts is kept. */
-export const PAYMENT_FORMULAS = [
-  PAYMENT_FORMULA,
-  `let(
-  statuses, prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.status}").format()),
-  if(statuses.empty(), "",
-    if(statuses.unique().length() == 1, statuses.first(),
-      prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.title}").split(" — ").first() + ": " + current.prop("${CHARGE_PROPS.status}").format()).join(" · ")))
-)`,
-  `if(prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.status}").format()).unique().length() <= 1,
-  prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.status}").format()).first(),
-  prop("${SESSION_CHARGES_BACKLINK}").map(current.prop("${CHARGE_PROPS.title}").format().split(" — ").first() + ": " + current.prop("${CHARGE_PROPS.status}").format()).join(" · "))`,
-];
-
-async function addPaymentFormula(sessionsId: string): Promise<{ variant: number; errors: string[] }> {
-  const errors: string[] = [];
-  for (const [variant, expression] of PAYMENT_FORMULAS.entries()) {
-    try {
-      await notion().dataSources.update({
-        data_source_id: sessionsId,
-        properties: { [PAYMENT_PROP]: { formula: { expression } } },
-      } as never);
-      return { variant, errors };
-    } catch (error) {
-      errors.push(`variant ${variant}: ${String(error)}`);
-    }
-  }
-  throw new Error(`No Payment formula was accepted: ${errors.join(" | ")}`);
-}
-
 /** Applies the schema changes; the caller then runs a full reconcile to fill the columns. */
 export async function applyStatusMigration(): Promise<{ done: string[]; report: StatusMigrationReport }> {
   const report = await planStatusMigration();
@@ -218,7 +174,16 @@ export async function applyStatusMigration(): Promise<{ done: string[]; report: 
   const chargesId = await chargesSource();
   const done: string[] = [];
 
-  // Columns first, so a new Status 2 that copied the N/A option is converted too.
+  // A formula Payment can't be turned into the app's text column, so it's replaced.
+  if (report.paymentIsFormula) {
+    await notion().dataSources.update({
+      data_source_id: sessionsId,
+      properties: { [PAYMENT_PROP]: null },
+    } as never);
+    done.push(`removed ${PAYMENT_PROP} formula`);
+  }
+  // Columns first (Payment text, Status 2...), so a new Status 2 that copied N/A is converted too.
+  resetSessionColumnsCache();
   const added = await ensureSessionStatusColumns(report.maxStudents);
   if (added.length > 0) done.push(`added session columns: ${added.join(", ")}`);
 
@@ -238,10 +203,7 @@ export async function applyStatusMigration(): Promise<{ done: string[]; report: 
     done.push(`N/A -> Free on ${sessionMoved} session and ${chargeMoved} charge value(s): ${report.renameFree.join(", ")}`);
   }
 
-  if (!report.sessionHasPayment) {
-    const { variant, errors } = await addPaymentFormula(sessionsId);
-    done.push(`added ${PAYMENT_PROP} (formula variant ${variant})`, ...errors);
-  }
+
   if (report.chargesHaveApplied) {
     await notion().dataSources.update({
       data_source_id: chargesId,

@@ -18,6 +18,7 @@ import {
   type Charge,
   flaggedFields,
   mergeSessionStatuses,
+  paymentSummary,
   parseStatusSync,
 } from "@/lib/charges";
 import { ensureSessionStatusColumns, writeSessionStatuses } from "@/lib/session-status-columns";
@@ -208,12 +209,14 @@ export async function reconcileSession(
       charges: found.map((c) => (c ? c.status : undefined)),
       sync: parseStatusSync(session.statusSync),
     });
+    const payment = paymentSummary(session.students, statuses.statuses);
     const columnsChanged =
       statuses.columns.some((value, i) => value !== (session.statusColumns[i] ?? null)) ||
-      statuses.sync !== session.statusSync;
+      statuses.sync !== session.statusSync ||
+      payment !== (session.payment ?? "");
     if (columnsChanged && !session.deleted) {
       await ensureSessionStatusColumns(statuses.columns.length);
-      await writeSessionStatuses(session.pageId, statuses.columns, statuses.sync);
+      await writeSessionStatuses(session.pageId, statuses.columns, statuses.sync, payment);
       result.sessionUpdated = true;
     }
 
