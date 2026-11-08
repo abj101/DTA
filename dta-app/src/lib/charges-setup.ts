@@ -23,7 +23,7 @@ async function parentPage(dataSourceId: string): Promise<string | null> {
  * Session Calendar (or Student) database, else at the workspace top level, with the exact
  * schema charges.ts expects. The Session relation is two-way, so each session page gains a "Charges" list.
  */
-export async function createChargesDatabase(): Promise<CreatedChargesDatabase> {
+export async function createChargesDatabase(parentPageId?: string): Promise<CreatedChargesDatabase> {
   const studentsConfigured = process.env.NOTION_STUDENTS_DATA_SOURCE_ID?.trim();
   if (!studentsConfigured) throw new Error("NOTION_STUDENTS_DATA_SOURCE_ID is not set");
   const [sessionsSource, studentsSource] = await Promise.all([
@@ -31,7 +31,8 @@ export async function createChargesDatabase(): Promise<CreatedChargesDatabase> {
     resolveDataSourceId(studentsConfigured),
   ]);
 
-  const parent = (await parentPage(sessionsSource)) ?? (await parentPage(studentsSource));
+  const parent =
+    parentPageId ?? (await parentPage(sessionsSource)) ?? (await parentPage(studentsSource));
 
   const created = await notion().databases.create({
     parent: parent ? { type: "page_id", page_id: parent } : { type: "workspace", workspace: true },
@@ -78,4 +79,21 @@ export async function createChargesDatabase(): Promise<CreatedChargesDatabase> {
   const dataSourceId = ("data_sources" in created && created.data_sources[0]?.id) || "";
   if (!dataSourceId) throw new Error("Notion did not return a data source for the new database");
   return { databaseId: created.id, dataSourceId, url: "url" in created ? created.url : "" };
+}
+
+/** Pages shared with the integration, as candidate homes for the new database. */
+export async function accessiblePages(): Promise<{ id: string; title: string; url: string }[]> {
+  const { results } = await notion().search({
+    filter: { property: "object", value: "page" },
+    page_size: 50,
+  });
+  return results.flatMap((page) => {
+    if (!("properties" in page)) return [];
+    const title = Object.values(page.properties).find((p) => p.type === "title");
+    const text = title?.type === "title" ? title.title.map((t: { plain_text: string }) => t.plain_text).join("") : "";
+    const parent = (page as { parent?: { type?: string } }).parent?.type;
+    return parent === "data_source_id" || parent === "database_id"
+      ? []
+      : [{ id: page.id, title: text || "Untitled", url: "url" in page ? String(page.url) : "" }];
+  });
 }

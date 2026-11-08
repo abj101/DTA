@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { applyBackfill, planBackfill } from "@/lib/charges-backfill";
-import { createChargesDatabase } from "@/lib/charges-setup";
+import { accessiblePages, createChargesDatabase } from "@/lib/charges-setup";
 
 export const maxDuration = 300;
 
@@ -34,6 +34,9 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const since = new Date(url.searchParams.get("since") ?? "2000-01-01");
   try {
+    if (url.searchParams.get("action") === "pages") {
+      return NextResponse.json({ ok: true, pages: await accessiblePages() });
+    }
     const plan = await planBackfill(since);
     if (url.searchParams.get("format") === "csv") {
       return new Response(plan.csv, { headers: { "content-type": "text/csv; charset=utf-8" } });
@@ -70,7 +73,8 @@ export async function POST(req: Request) {
           { status: 409 },
         );
       }
-      return NextResponse.json({ ok: true, ...(await createChargesDatabase()) });
+      const parent = url.searchParams.get("parent") ?? undefined;
+      return NextResponse.json({ ok: true, ...(await createChargesDatabase(parent)) });
     }
     if (action === "apply") {
       const plan = await planBackfill(new Date(url.searchParams.get("since") ?? "2000-01-01"));
