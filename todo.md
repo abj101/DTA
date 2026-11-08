@@ -122,7 +122,7 @@ Execute top to bottom. Only check a box after its **Verify** line passes.
 
 - [x] Responsive pass all routes (`plan.md` Build Order 7).
 - [x] `app/not-found.tsx` — branded 404, nav/footer or link home (`plan.md` Build Order 8).
-- [ ] Token/theme regression: after any `design-tokens.css` or Tailwind theme edit, smoke `/`, `/about`, `/contact`.
+- Standing rule (see Quality gates): after any `design-tokens.css` or Tailwind theme edit, smoke `/`, `/about`, `/contact`.
 
 **Verify:** Lint + build. All three routes at 375 / 768 / 1280.
 
@@ -147,16 +147,16 @@ Execute top to bottom. Only check a box after its **Verify** line passes.
 
 From [plan.md — Pre-Build Requirements (Founders)](./plan.md):
 
-- [ ] Create Calendly account → "Free Consultation" 30-min event → available hours
-- [ ] Generate Calendly personal API token → store securely
-- [ ] `GET /event_types` once → save event type UUID for env
-- [ ] Add env vars to `.env.local` and Vercel (`plan.md` Calendly section)
-- [ ] SMTP inbox for contact form → set env vars per `dta-app/.env.example` and `plan.md` Contact form — SMTP
-- [ ] Write "Our Story" paragraph (2–3 sentences)
-- [ ] Write each tutor bio (3–4 sentences each)
-- [ ] Founder photos (high res, square or portrait) for `<FounderCards>`
-- [ ] Vercel: set project **Root Directory** to `dta-app` (see [`dta-app/DEPLOY.md`](./dta-app/DEPLOY.md)); clear repo-root install/build overrides
-- [ ] Register domain → connect to Vercel
+- [x] Create Calendly account → "Free Consultation" 30-min event → available hours
+- [x] Generate Calendly personal API token → store securely
+- [x] `GET /event_types` once → save event type UUID for env
+- [x] Add env vars to `.env.local` and Vercel (`plan.md` Calendly section)
+- [x] SMTP inbox for contact form → set env vars per `dta-app/.env.example` and `plan.md` Contact form — SMTP
+- [x] Write "Our Story" paragraph (2–3 sentences)
+- [x] Write each tutor bio (3–4 sentences each)
+- [x] Founder photos (high res, square or portrait) for `<FounderCards>`
+- [x] Vercel: set project **Root Directory** to `dta-app` (see [`dta-app/DEPLOY.md`](./dta-app/DEPLOY.md)); clear repo-root install/build overrides
+- [x] Register domain → connect to Vercel
 
 ---
 
