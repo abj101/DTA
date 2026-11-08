@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# Backfill dry-run reports (contain student names)
+backfill-charges-report*.csv
