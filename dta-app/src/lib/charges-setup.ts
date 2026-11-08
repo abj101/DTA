@@ -7,10 +7,21 @@ export const SESSION_CHARGES_BACKLINK = "Charges";
 
 export type CreatedChargesDatabase = { databaseId: string; dataSourceId: string; url: string };
 
+/** The page a data source's database lives in; null when it sits at the workspace top level. */
+async function parentPage(dataSourceId: string): Promise<string | null> {
+  const source = await notion().dataSources.retrieve({ data_source_id: dataSourceId });
+  const databaseId = ((source as { parent?: unknown }).parent as { database_id?: string } | undefined)
+    ?.database_id;
+  if (!databaseId) return null;
+  const db = await notion().databases.retrieve({ database_id: databaseId });
+  const parent = (db as { parent?: { type: string; page_id?: string } }).parent;
+  return parent?.type === "page_id" && parent.page_id ? parent.page_id : null;
+}
+
 /**
- * One-time setup: creates the "Session Charges" database next to the Session Calendar
- * database (same parent page), with the exact schema charges.ts expects. The Session
- * relation is two-way, so each session page gains a "Charges" list.
+ * One-time setup: creates the "Session Charges" database in the page that holds the
+ * Session Calendar (or Student) database, else at the workspace top level, with the exact
+ * schema charges.ts expects. The Session relation is two-way, so each session page gains a "Charges" list.
  */
 export async function createChargesDatabase(): Promise<CreatedChargesDatabase> {
   const studentsConfigured = process.env.NOTION_STUDENTS_DATA_SOURCE_ID?.trim();
@@ -20,17 +31,10 @@ export async function createChargesDatabase(): Promise<CreatedChargesDatabase> {
     resolveDataSourceId(studentsConfigured),
   ]);
 
-  const source = await notion().dataSources.retrieve({ data_source_id: sessionsSource });
-  const databaseId = ((source as { parent?: unknown }).parent as { database_id?: string } | undefined)?.database_id;
-  if (!databaseId) throw new Error("Session Calendar data source has no parent database");
-  const sessionsDb = await notion().databases.retrieve({ database_id: databaseId });
-  const parent = (sessionsDb as { parent?: { type: string; page_id?: string } }).parent;
-  if (parent?.type !== "page_id" || !parent.page_id) {
-    throw new Error(`Session Calendar is not inside a page (parent: ${parent?.type ?? "unknown"})`);
-  }
+  const parent = (await parentPage(sessionsSource)) ?? (await parentPage(studentsSource));
 
   const created = await notion().databases.create({
-    parent: { type: "page_id", page_id: parent.page_id },
+    parent: parent ? { type: "page_id", page_id: parent } : { type: "workspace", workspace: true },
     title: [{ text: { content: "Session Charges" } }],
     description: [
       {
