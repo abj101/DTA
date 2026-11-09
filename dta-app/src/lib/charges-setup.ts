@@ -42,7 +42,7 @@ export async function createChargesDatabase(parentPageId?: string): Promise<Crea
       {
         text: {
           content:
-            "One charge per student per session. Standard Rate is set by the app; edit Adjusted Rate, Status and Note.",
+            "One charge per student per session. Standard Rate (hourly) and Hours are set by the app; edit Adjusted Rate, Status and Note.",
         },
       },
     ],
@@ -73,6 +73,7 @@ export async function createChargesDatabase(parentPageId?: string): Promise<Crea
         [CHARGE_PROPS.note]: { rich_text: {} },
         [CHARGE_PROPS.studentRemoved]: { checkbox: {} },
         [CHARGE_PROPS.date]: { date: {} },
+        [CHARGE_PROPS.hours]: { number: { format: "number" } },
         [CHARGE_PROPS.key]: { rich_text: {} },
       },
     },

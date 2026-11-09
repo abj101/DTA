@@ -20,6 +20,8 @@ import {
   paymentSummary,
   statusColumnName,
   sessionHasPassed,
+  sessionHours,
+  chargeAmount,
   targetStandardRate,
 } from "../src/lib/charges.ts";
 
@@ -38,6 +40,7 @@ const charge = (over = {}) => ({
   note: "",
   studentRemoved: false,
   date: "2026-09-10",
+  hours: 1,
   ...over,
 });
 
@@ -71,6 +74,7 @@ const input = {
   currentRate: 60,
   passed: false,
   ymd: "2026-09-10",
+  hours: 1,
 };
 assert.deepEqual(diffFields(charge(), desiredFields(charge(), input)), {});
 // The app never touches user fields: Adjusted Rate, Status and Note never appear in a patch.
@@ -108,6 +112,26 @@ assert.deepEqual(diffFields(charge({ date: "" }), desiredFields(charge({ date: "
   date: "2026-09-10",
 });
 assert.deepEqual(diffFields(edited, flaggedFields(edited)), { studentRemoved: true });
+
+// Hours: from the session's start and end, nearest quarter hour; 1 without an end time.
+assert.equal(sessionHours("2026-09-10T02:15:00.000+00:00", "2026-09-10T03:15:00.000+00:00"), 1);
+assert.equal(sessionHours("2026-09-10T19:00:00.000-07:00", "2026-09-10T21:00:00.000-07:00"), 2);
+assert.equal(sessionHours("2026-09-10T19:00:00.000-07:00", "2026-09-10T20:30:00.000-07:00"), 1.5);
+assert.equal(sessionHours("2026-09-10T19:00:00.000-07:00", null), 1);
+assert.equal(sessionHours("2026-09-10", "2026-09-11"), 1);
+assert.equal(sessionHours("2026-09-10T19:00:00.000-07:00", "2026-09-10T19:00:00.000-07:00"), 1);
+// Amount is rate x hours.
+assert.equal(chargeAmount(60, 2), 120);
+assert.equal(chargeAmount(45, 1.5), 67.5);
+assert.equal(chargeAmount(null, 2), null);
+// Hours follow the session even once it has passed (the rate stays frozen).
+assert.deepEqual(
+  diffFields(charge(), desiredFields(charge(), { ...input, currentRate: 80, passed: true, hours: 2 })),
+  { hours: 2 },
+);
+// Charges made before Hours existed get it filled in.
+assert.deepEqual(diffFields(charge({ hours: null }), desiredFields(charge({ hours: null }), input)), { hours: 1 });
+assert.deepEqual(managedProperties({ hours: 2 }), { [CHARGE_PROPS.hours]: { number: 2 } });
 
 // Patch properties contain only managed fields.
 assert.deepEqual(Object.keys(managedProperties({ standardRate: 80 })), [CHARGE_PROPS.standardRate]);
@@ -166,6 +190,7 @@ assert.deepEqual(chargeFromPage(page), {
   note: "",
   studentRemoved: true,
   date: "",
+  hours: null,
 });
 assert.equal(chargeFromPage({ ...page, properties: {} }), null);
 

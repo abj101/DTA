@@ -15,6 +15,7 @@ import {
   dashless,
   newChargeProperties,
   sessionYmdIn,
+  sessionHours,
 } from "./charges.ts";
 import { notion, querySessions, resolveDataSourceId, type Session } from "./notion-sessions.ts";
 import { DTA_SCHEDULE_TZ } from "./pacific-date.ts";
@@ -192,6 +193,7 @@ export async function applyBackfill(
           standardRate: c.seed,
           studentRemoved: false,
           date: c.ymd,
+          hours: sessionHours(c.session.start, c.session.end),
           status: c.status,
         },
       }) as never,

@@ -1,4 +1,4 @@
-import type { Charge } from "./charges";
+import { type Charge, chargeAmount, sessionHours } from "./charges.ts";
 import type { Session } from "./notion-sessions";
 
 /** Notion Status value for free sessions; they are listed with a $0 amount. */
@@ -10,12 +10,18 @@ export function isFreeStatus(status: string | null | undefined): boolean {
   return status === FREE_STATUS || status === LEGACY_FREE_STATUS;
 }
 
+function hoursOf(session: Session): number {
+  return sessionHours(session.start, session.end);
+}
+
 /** One accounting row: a session paired with a single one of its students. */
 export type AccountingRow = {
   session: Session;
   student: string;
-  /** The rate the amount derives from; null leaves the amount cell blank. */
+  /** The hourly rate the amount derives from; null leaves the amount cell blank. */
   rate: number | null;
+  /** Session length; the amount is rate x hours. */
+  hours: number;
   /** Payment status shown on the row. */
   status: string | null;
   /** Notion page the Student cell links to (the charge, or the session before it exists). */
@@ -29,11 +35,12 @@ export type AccountingRow = {
 export function sessionRows(sessions: Session[]): AccountingRow[] {
   return sessions.flatMap((session) =>
     session.students.length === 0
-      ? [{ session, student: "", rate: null, status: null, url: session.url }]
+      ? [{ session, student: "", rate: null, hours: hoursOf(session), status: null, url: session.url }]
       : session.students.map((student, index) => ({
           session,
           student,
           rate: session.studentRates[index] ?? null,
+          hours: hoursOf(session),
           status: null,
           url: session.url,
         })),
@@ -59,6 +66,7 @@ export function chargeRows(
           session,
           student,
           rate: session.studentRates[index] ?? null,
+          hours: hoursOf(session),
           status: null,
           url: session.url,
         };
@@ -71,7 +79,7 @@ export function chargeRows(
     }
     return rows.length > 0
       ? rows
-      : [{ session, student: "", rate: null, status: null, url: session.url }];
+      : [{ session, student: "", rate: null, hours: hoursOf(session), status: null, url: session.url }];
   });
 }
 
@@ -80,14 +88,15 @@ function chargeRow(session: Session, student: string, charge: Charge): Accountin
     session,
     student,
     rate: charge.adjustedRate ?? charge.standardRate,
+    hours: charge.hours ?? hoursOf(session),
     status: charge.status,
     url: charge.url,
   };
 }
 
-/** A row's amount: free (N/A) rows are $0, otherwise the rate (null = blank). */
-export function rowAmount({ status, rate }: AccountingRow): number | null {
-  return isFreeStatus(status) ? 0 : rate;
+/** A row's amount: free rows are $0, otherwise rate x hours (null = blank). */
+export function rowAmount({ status, rate, hours }: AccountingRow): number | null {
+  return isFreeStatus(status) ? 0 : chargeAmount(rate, hours);
 }
 
 /** Only sessions of this Meeting Type are accounted (sheet rows and charges). */

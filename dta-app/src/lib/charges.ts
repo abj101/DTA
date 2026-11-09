@@ -19,6 +19,10 @@ export const CHARGE_PROPS = {
   studentRemoved: "Student Removed",
   /** Session date (app-managed), so the ledger can be split into month views. */
   date: "Date",
+  /** Session length in hours (app-managed, from the session's start and end). */
+  hours: "Hours",
+  /** Formula column: rate x hours ($0 when Free). */
+  amount: "Amount",
 } as const;
 
 export const STATUS_OUTSTANDING = "Outstanding";
@@ -42,6 +46,8 @@ export type Charge = {
   studentRemoved: boolean;
   /** YYYY-MM-DD, or "" when never set. */
   date: string;
+  /** Session length the app last wrote; null on charges made before Hours existed. */
+  hours: number | null;
 };
 
 /** The fields the app manages on a charge; everything else belongs to the user. */
@@ -50,6 +56,7 @@ export type ManagedFields = {
   standardRate: number | null;
   studentRemoved: boolean;
   date: string;
+  hours: number;
   /** Payment status: set to Outstanding when the charge is created, then yours alone. */
   status: string | null;
 };
@@ -112,6 +119,22 @@ export function chargeRate(adjusted: number | null, standard: number | null): nu
   return adjusted ?? standard;
 }
 
+/**
+ * Hours a session lasts, from its Notion start and end, to the nearest quarter hour.
+ * Defaults to 1 when there is no end time (or an all-day / zero-length date).
+ */
+export function sessionHours(start: string | null, end: string | null): number {
+  if (!start || !end || start.length === 10 || end.length === 10) return 1;
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const hours = Math.round((ms / 3_600_000) * 4) / 4;
+  return Number.isFinite(hours) && hours > 0 ? hours : 1;
+}
+
+/** What a charge bills: its hourly rate x hours; null when there is no rate. */
+export function chargeAmount(rate: number | null, hours: number): number | null {
+  return rate == null ? null : Math.round(rate * hours * 100) / 100;
+}
+
 /** The app-managed fields a charge should hold given the live session and student. */
 export function desiredFields(
   existing: Charge | null,
@@ -120,6 +143,8 @@ export function desiredFields(
     currentRate: number | null;
     passed: boolean;
     ymd: string;
+    /** Session length (see sessionHours); always follows the session, even once past. */
+    hours: number;
   },
 ): ManagedFields {
   return {
@@ -127,6 +152,7 @@ export function desiredFields(
     standardRate: targetStandardRate(existing?.standardRate ?? null, input.currentRate, input.passed),
     studentRemoved: false,
     date: input.ymd,
+    hours: input.hours,
     // Payment status lives only on the charge: new ones start Outstanding, existing ones keep theirs.
     status: existing ? existing.status : STATUS_OUTSTANDING,
   };
@@ -139,6 +165,7 @@ export function flaggedFields(charge: Charge): ManagedFields {
     standardRate: charge.standardRate,
     studentRemoved: true,
     date: charge.date,
+    hours: charge.hours ?? 1,
     status: charge.status,
   };
 }
@@ -152,6 +179,7 @@ export function diffFields(charge: Charge, desired: ManagedFields): Partial<Mana
     patch.studentRemoved = desired.studentRemoved;
   }
   if (desired.date && charge.date !== desired.date) patch.date = desired.date;
+  if (charge.hours !== desired.hours) patch.hours = desired.hours;
   if (desired.status != null && charge.status !== desired.status) patch.status = desired.status;
   return patch;
 }
@@ -252,6 +280,7 @@ export function chargeFromPage(page: {
     note: note?.type === "rich_text" ? richText(note.rich_text) : "",
     studentRemoved: removed?.type === "checkbox" ? removed.checkbox : false,
     date: date?.type === "date" ? (date.date?.start.slice(0, 10) ?? "") : "",
+    hours: num(CHARGE_PROPS.hours),
   };
 }
 
@@ -270,6 +299,7 @@ export function managedProperties(fields: Partial<ManagedFields>): PropertyValue
     props[CHARGE_PROPS.studentRemoved] = { checkbox: fields.studentRemoved };
   }
   if (fields.date) props[CHARGE_PROPS.date] = { date: { start: fields.date } };
+  if (fields.hours !== undefined) props[CHARGE_PROPS.hours] = { number: fields.hours };
   if (fields.status != null) props[CHARGE_PROPS.status] = { select: { name: fields.status } };
   return props;
 }

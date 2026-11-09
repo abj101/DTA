@@ -19,6 +19,8 @@ const COLUMN_ORDER = [
   CHARGE_PROPS.status,
   CHARGE_PROPS.standardRate,
   CHARGE_PROPS.adjustedRate,
+  CHARGE_PROPS.hours,
+  CHARGE_PROPS.amount,
   CHARGE_PROPS.date,
   CHARGE_PROPS.session,
   CHARGE_PROPS.note,
@@ -69,15 +71,41 @@ function loadLedger(): Promise<Ledger> {
   return ledger;
 }
 
-/** Adds the Date column to a ledger created before it existed. */
+/** Rate x hours, $0 when Free (mirrors rowAmount); only reads the charge's own columns. */
+export const AMOUNT_FORMULA =
+  `if(format(prop("${CHARGE_PROPS.status}")) == "Free", 0, ` +
+  `if(empty(prop("${CHARGE_PROPS.adjustedRate}")), prop("${CHARGE_PROPS.standardRate}"), prop("${CHARGE_PROPS.adjustedRate}")) * ` +
+  `if(empty(prop("${CHARGE_PROPS.hours}")), 1, prop("${CHARGE_PROPS.hours}")))`;
+
+/** Adds the Date, Hours and Amount columns to a ledger created before they existed. */
 export async function ensureChargeColumns(): Promise<string[]> {
   const { dataSourceId, propertyIds } = await loadLedger();
   const missing: Record<string, unknown> = {};
   if (!propertyIds.has(CHARGE_PROPS.date)) missing[CHARGE_PROPS.date] = { date: {} };
-  if (Object.keys(missing).length === 0) return [];
-  await notion().dataSources.update({ data_source_id: dataSourceId, properties: missing as never });
-  ledger = null;
-  return Object.keys(missing);
+  if (!propertyIds.has(CHARGE_PROPS.hours)) {
+    missing[CHARGE_PROPS.hours] = { number: { format: "number" } };
+  }
+  const added: string[] = [];
+  if (Object.keys(missing).length > 0) {
+    await notion().dataSources.update({ data_source_id: dataSourceId, properties: missing as never });
+    added.push(...Object.keys(missing));
+    ledger = null;
+  }
+  // Amount is a convenience view of rate x hours; the sheet computes its own, so a formula
+  // Notion rejects is logged, never fatal to the sync.
+  if (!propertyIds.has(CHARGE_PROPS.amount)) {
+    try {
+      await notion().dataSources.update({
+        data_source_id: dataSourceId,
+        properties: { [CHARGE_PROPS.amount]: { formula: { expression: AMOUNT_FORMULA } } } as never,
+      });
+      added.push(CHARGE_PROPS.amount);
+      ledger = null;
+    } catch (error) {
+      console.error("[charges] Amount formula column not added", error);
+    }
+  }
+  return added;
 }
 
 function tableConfiguration(propertyIds: Map<string, string>) {

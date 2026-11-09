@@ -94,6 +94,23 @@ assert.deepEqual(
     ["Ben", 99, "https://notion.so/p"],
   ],
 );
+// Two-hour sessions bill rate x 2, from the charge's Hours or, before it is set, the session.
+const long = session({
+  start: "2026-09-10T19:00:00.000-07:00",
+  end: "2026-09-10T21:00:00.000-07:00",
+  students: ["Ana", "Ben"],
+  studentIds: ["a", "b"],
+  studentRates: [60, 60],
+});
+assert.deepEqual(sessionRows([long]).map(rowAmount), [120, 120]);
+assert.deepEqual(
+  chargeRows([long], new Map([["p", [charge({ hours: 2, adjustedRate: 50 }), charge({ pageId: "c2", studentId: "b", key: "p:b" })]]])).map(rowAmount),
+  [100, 120],
+);
+assert.deepEqual(
+  chargeRows([long], new Map([["p", [charge({ hours: 2, status: FREE_STATUS })]]])).map(rowAmount),
+  [0, 120],
+);
 assert.equal(isAccountable(session()), true);
 assert.equal(isAccountable(session({ meetingType: "Office Hours" })), false);
 assert.equal(isAccountable(session({ deleted: true })), false);

@@ -49,8 +49,10 @@ In Notion create a database named **Session Charges** (put it next to the Sessio
 | Session | Relation to Session Calendar | app |
 | Student | Relation to Student Database | app |
 | Key | Text | app (`<sessionId>:<studentId>`, dashless; dedupe key) |
-| Standard Rate | Number | app (snapshot of the student's Session Rate) |
-| Adjusted Rate | Number | **you**, optional; the app never writes it |
+| Standard Rate | Number | app (snapshot of the student's hourly Session Rate) |
+| Adjusted Rate | Number | **you**, optional hourly override; the app never writes it |
+| Hours | Number | app (session length from its start and end, nearest quarter hour; 1 with no end time) |
+| Amount | Formula | rate × Hours, $0 when Free |
 | Status | Select with options `Settled`, `Outstanding`, `Free` | **you**, here or in the session's matching status column; new charges start `Outstanding` (or the session column's value) |
 | Date | Date | app (the session's day; drives the month tabs) |
 | Note | Text | you |
@@ -60,9 +62,9 @@ Then share the database with the Notion integration (`•••` > Connections),
 
 ### Rules
 
-- Amount = Adjusted Rate if set, else Standard Rate; Status `Free` means $0.
+- Amount = (Adjusted Rate if set, else Standard Rate) × Hours; Status `Free` means $0. A 2-hour session bills twice the rate. Hours always follow the session's time, even after it has passed; only the rate is frozen.
 - Each billed session has one status column per student, by their position in its Student list: **Status** (1st), **Status 2** (2nd), and so on. Each is synced both ways with that student's charge: edit either and the other follows. A hidden **Status Sync** column records what was last synced, so the app can tell which side you changed; if the Student list changes, the columns are refilled from the charges. Google Calendar events show a **Payment** line summarising them: `Settled` when everyone matches, otherwise `Ana Lee: Settled · Ben Ng: Outstanding` (sessions no longer have a Payment column; the setup migration removes the old one). Free sessions use **Free** (formerly N/A).
-- The table has an **All** tab plus one tab per month, added automatically when a month gets its first charge. Columns: Student, Status, Standard Rate, Adjusted Rate, then the rest.
+- The table has an **All** tab plus one tab per month, added automatically when a month gets its first charge. Columns: Student, Status, Standard Rate, Adjusted Rate, Hours, Amount, then the rest.
 - Standard Rate follows the student's current Session Rate while the session is in the future, and is frozen once the session date has passed. Clear it to re-snapshot the current rate on the next sync.
 - Removing a student from a session trashes their charge if untouched (Outstanding, no Adjusted Rate, no Note); otherwise the charge stays with **Student Removed** checked.
 - Duplicate charges for one session x student are merged by the daily cron, keeping the one with your edits.

@@ -14,6 +14,7 @@ import {
   pickSurvivor,
   removalAction,
   sessionHasPassed,
+  sessionHours,
   sessionYmdIn,
   type Charge,
   flaggedFields,
@@ -225,6 +226,7 @@ export async function reconcileSession(
           currentRate: session.studentRates[index] ?? null,
           passed,
           ymd,
+          hours: sessionHours(session.start, session.end),
         }),
         status: statuses.statuses[index],
       };
@@ -307,6 +309,7 @@ export async function refreshStudentCharges(
         currentRate: session.studentRates[index] ?? null,
         passed: sessionHasPassed(session.start!, now, DTA_SCHEDULE_TZ),
         ymd,
+        hours: sessionHours(session.start, session.end),
       }),
     );
     if (Object.keys(patch).length > 0) await update(charge.pageId, managedProperties(patch));
